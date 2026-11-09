@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>استرجاع التسجيلات والفيديوهات</title>
+<style>
+  :root{ --bg:#faf7f0; --card:#fff; --ink:#10243f; --muted:#6b7280; --gold:#c8963e; --green:#2f7d4f; --red:#b3261e; }
+  @media (prefers-color-scheme: dark){ :root{ --bg:#0f1b2d; --card:#17263d; --ink:#f3efe6; --muted:#a9b3c2; } }
+  *{ box-sizing:border-box; }
+  body{ margin:0; padding:16px; background:var(--bg); color:var(--ink); font-family:system-ui,"Segoe UI",Tahoma,sans-serif; line-height:1.7; }
+  h1{ font-size:20px; margin:4px 0 6px; }
+  p{ margin:6px 0; color:var(--muted); font-size:14px; }
+  .box{ background:var(--card); border:1px solid rgba(128,128,128,.25); border-radius:14px; padding:14px; margin:12px 0; }
+  .row{ display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  button{ font:inherit; font-weight:700; border:0; border-radius:10px; padding:10px 14px; background:var(--ink); color:var(--bg); cursor:pointer; }
+  button.alt{ background:transparent; color:var(--ink); border:1px solid var(--ink); }
+  button.go{ background:var(--green); color:#fff; }
+  .name{ font-weight:800; font-size:16px; }
+  .meta{ font-size:13px; color:var(--muted); }
+  .tag{ display:inline-block; font-size:12px; padding:1px 8px; border-radius:99px; background:var(--gold); color:#fff; margin-inline-end:6px; }
+  .tag.v{ background:#6a3fb5; }
+  .warn{ color:var(--red); font-weight:700; }
+  video,audio{ width:100%; margin-top:10px; border-radius:10px; }
+  .mk{ display:inline-block; margin:4px 4px 0 0; padding:3px 10px; border-radius:99px; background:#fde8e6; color:var(--red); font-weight:700; font-size:13px; cursor:pointer; border:1px solid var(--red); }
+  .mkrow{ margin-top:8px; font-size:13px; color:var(--muted); }
+  #log{ font-size:13px; color:var(--muted); white-space:pre-wrap; }
+</style>
+</head>
+<body>
+<h1>🎥 استرجاع التسجيلات والفيديوهات</h1>
+<p>الصفحة دي بتدوّر جوه المتصفح على أي تسجيل صوتي أو فيديو محفوظ من برنامج الاختبارات، وبتخليكي تنزّليه على الموبايل.</p>
+<p><b>مهم:</b> لازم تفتحيها من نفس المتصفح (كروم) ونفس الموبايل اللي سجلتي عليه.</p>
+
+<div class="box">
+  <div class="row">
+    <button id="scanBtn" class="go">🔍 ابحثي عن التسجيلات</button>
+    <button id="allBtn" class="alt" style="display:none">⬇ تنزيل الكل</button>
+  </div>
+  <div id="summary" class="meta" style="margin-top:10px"></div>
+</div>
+
+<div id="list"></div>
+<div id="log"></div>
+
+<script>
+(function(){
+  var items = [];
+  var urls = [];
+
+  function log(m){ document.getElementById('log').textContent += m + '\n'; }
+  function esc(s){ return String(s == null ? '' : s).replace(/[&<>"]/g, function(c){ return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]; }); }
+  function mb(n){ return (n / 1048576).toFixed(2) + ' MB'; }
+  function clean(t){ return String(t || '').replace(/[\\\/:*?"<>|\n\r]+/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 60); }
+
+  function readRecords(){
+    var map = {};
+    var keys = ['quran-tests:list','quran-tests:trash','quran-single-surah:list','quran-single-surah:trash'];
+    keys.forEach(function(k){
+      try{
+        var arr = JSON.parse(localStorage.getItem(k) || '[]');
+        if(Array.isArray(arr)) arr.forEach(function(r){ if(r && r.id != null) map[String(r.id)] = r; });
+      }catch(e){}
+    });
+    return map;
+  }
+
+  function dataUrlToBlob(u){
+    var i = u.indexOf(';base64,');
+    var head = u.slice(0, i), b64 = u.slice(i + 8);
+    var m = head.match(/data:(.*)$/);
+    var mime = m ? m[1] : 'application/octet-stream';
+    var parts = [], CH = 1048576;
+    for(var p = 0; p < b64.length; p += CH){
+      var bin = atob(b64.slice(p, p + CH));
+      var arr = new Uint8Array(bin.length);
+      for(var k = 0; k < bin.length; k++) arr[k] = bin.charCodeAt(k);
+      parts.push(arr);
+    }
+    return new Blob(parts, {type: mime});
+  }
+
+  function ext(blob, kind){
+    var t = (blob.type || '').toLowerCase();
+    if(t.indexOf('mp4') >= 0) return kind === 'video' ? '.mp4' : '.m4a';
+    if(t.indexOf('ogg') >= 0) return '.ogg';
+    if(t.indexOf('mpeg') >= 0) return '.mp3';
+    return kind === 'video' ? '.webm' : '.webm';
+  }
+
+  function fileName(it){
+    var r = it.rec;
+    var who = r ? clean(r.student) : '';
+    var when = r ? clean(r.date) : '';
+    var base = (it.kind === 'video' ? 'فيديو' : 'تسجيل') + (who ? '-' + who : '') + (when ? '-' + when : '') + '-' + it.id;
+    return base.replace(/\s+/g, '-') + ext(it.blob, it.kind);
+  }
+
+  function listDbNames(){
+    var known = ['quran-single-surah-audio-db','quran-tests-audio-db'];
+    if(!indexedDB.databases) return Promise.resolve(known);
+    return indexedDB.databases().then(function(dbs){
+      var names = dbs.map(function(d){ return d.name; }).filter(Boolean);
+      var out = [];
+      names.forEach(function(n){ if(out.indexOf(n) < 0) out.push(n); });
+      known.forEach(function(n){ if(out.indexOf(n) < 0 && names.length === 0) out.push(n); });
+      return out;
+    }).catch(function(){ return known; });
+  }
+
+  function readDb(name, recMap){
+    return new Promise(function(resolve){
+      var req;
+      try{ req = indexedDB.open(name); }catch(e){ resolve([]); return; }
+      req.onerror = function(){ log('تعذر فتح ' + name); resolve([]); };
+      req.onsuccess = function(){
+        var db = req.result, found = [];
+        var stores = Array.prototype.slice.call(db.objectStoreNames);
+        if(!stores.length){ db.close(); resolve([]); return; }
+        var pending = stores.length;
+        stores.forEach(function(sn){
+          try{
+            var tx = db.transaction(sn, 'readonly'), st = tx.objectStore(sn);
+            var cur = st.openCursor();
+            cur.onsuccess = function(){
+              var c = cur.result;
+              if(c){
+                var key = String(c.key), val = c.value, blob = null;
+                try{
+                  if(val instanceof Blob) blob = val;
+                  else if(typeof val === 'string' && val.indexOf('data:') === 0 && val.indexOf(';base64,') > 0) blob = dataUrlToBlob(val);
+                }catch(e){ log('تعذر قراءة ' + key); }
+                if(blob && blob.size > 0){
+                  var isVideo = key.indexOf('video:') === 0 || (blob.type || '').indexOf('video') === 0;
+                  var id = key.replace('video:', '');
+                  found.push({db:name, key:key, id:id, kind:isVideo ? 'video' : 'audio', blob:blob, rec:recMap[id] || null});
+                }
+                c.continue();
+              }else{
+                if(--pending === 0){ db.close(); resolve(found); }
+              }
+            };
+            cur.onerror = function(){ if(--pending === 0){ db.close(); resolve(found); } };
+          }catch(e){ if(--pending === 0){ db.close(); resolve(found); } }
+        });
+      };
+    });
+  }
+
+  function triggerDownload(it){
+    var url = URL.createObjectURL(it.blob);
+    var a = document.createElement('a');
+    a.href = url; a.download = fileName(it); a.style.display = 'none';
+    document.body.appendChild(a); a.click();
+    setTimeout(function(){ a.remove(); URL.revokeObjectURL(url); }, 60000);
+  }
+
+  async function shareItem(it){
+    try{
+      var f = new File([it.blob], fileName(it), {type: it.blob.type || 'application/octet-stream'});
+      if(navigator.canShare && navigator.canShare({files:[f]}) && navigator.share){
+        await navigator.share({files:[f], title: fileName(it)});
+        return;
+      }
+    }catch(e){ if(e && e.name === 'AbortError') return; }
+    triggerDownload(it);
+  }
+
+  function togglePreview(it, holder, btn){
+    if(holder.firstChild){ holder.innerHTML = ''; btn.textContent = '▶ معاينة'; return; }
+    var url = URL.createObjectURL(it.blob); urls.push(url);
+    var el = document.createElement(it.kind === 'video' ? 'video' : 'audio');
+    el.controls = true; el.src = url; el.setAttribute('playsinline', '');
+    holder.appendChild(el); btn.textContent = '✖ إغلاق';
+  }
+
+  function fmt(t){ var s = Math.max(0, Math.round(Number(t))); return String(Math.floor(s/60)).padStart(2,'0') + ':' + String(s%60).padStart(2,'0'); }
+  function markersOf(it){
+    var r = it.rec; if(!r) return [];
+    var m = it.kind === 'video' ? r.videoMarkers : r.audioMarkers;
+    return Array.isArray(m) ? m.slice().map(Number).filter(function(x){ return !isNaN(x); }).sort(function(a,b){ return a-b; }) : [];
+  }
+
+  function render(recMap){
+    var list = document.getElementById('list');
+    list.innerHTML = '';
+    items.sort(function(a, b){ return Number(b.id) - Number(a.id); });
+    items.forEach(function(it){
+      var r = it.rec;
+      var d = document.createElement('div'); d.className = 'box';
+      var title = r ? esc(r.student) : 'اختبار غير معروف';
+      var sub = r ? esc((r.date || '') + ' ' + (r.time || '') + (r.className ? ' · ' + r.className : '')) : 'رقم ' + esc(it.id);
+      d.innerHTML = '<div class="name"><span class="tag ' + (it.kind === 'video' ? 'v' : '') + '">' +
+        (it.kind === 'video' ? '🎥 فيديو' : '🎙️ صوت') + '</span>' + title + '</div>' +
+        '<div class="meta">' + sub + ' · ' + mb(it.blob.size) + '</div>' +
+        '<div class="row"><button class="go" data-a="dl">⬇ تنزيل</button>' +
+        '<button class="alt" data-a="sh">📤 مشاركة / حفظ في المعرض</button>' +
+        '<button class="alt" data-a="pv">▶ معاينة</button></div><div class="pv"></div>';
+      var holder = d.querySelector('.pv');
+      var mks = markersOf(it);
+      if(mks.length){
+        var mr = document.createElement('div'); mr.className = 'mkrow';
+        mr.innerHTML = '🚩 أوقات أخطاء الطالب (اضغطي على الوقت عشان تروحي له):<br>';
+        mks.forEach(function(t){
+          var c = document.createElement('span'); c.className = 'mk'; c.textContent = fmt(t);
+          c.onclick = function(){
+            if(!holder.firstChild) togglePreview(it, holder, d.querySelector('[data-a=pv]'));
+            var el = holder.firstChild;
+            if(el){ el.currentTime = t; var pr = el.play(); if(pr && pr.catch) pr.catch(function(){}); }
+          };
+          mr.appendChild(c);
+        });
+        var cp = document.createElement('button'); cp.className = 'alt'; cp.style.cssText = 'padding:3px 10px;font-size:12px;margin-top:4px';
+        cp.textContent = '📋 نسخ الأوقات';
+        cp.onclick = function(){
+          var txt = (r ? r.student : '') + ' ' + (r ? r.date : '') + ': ' + mks.map(fmt).join(' - ');
+          if(navigator.clipboard) navigator.clipboard.writeText(txt).then(function(){ cp.textContent = '✓ اتنسخت'; });
+        };
+        mr.appendChild(document.createElement('br')); mr.appendChild(cp);
+        d.insertBefore(mr, holder);
+      }
+      d.querySelector('[data-a=dl]').onclick = function(){ triggerDownload(it); };
+      d.querySelector('[data-a=sh]').onclick = function(){ shareItem(it); };
+      var pvBtn = d.querySelector('[data-a=pv]');
+      pvBtn.onclick = function(){ togglePreview(it, holder, pvBtn); };
+      list.appendChild(d);
+    });
+
+    // سجلات فيها تسجيل مفروض يكون موجود لكن مش لاقينه
+    var have = {};
+    items.forEach(function(it){ have[it.kind + ':' + it.id] = true; });
+    var missA = 0, missV = 0;
+    Object.keys(recMap).forEach(function(id){
+      var r = recMap[id];
+      if(r.hasAudio && !have['audio:' + id]) missA++;
+      if(r.hasVideo && !have['video:' + id]) missV++;
+    });
+    var lost = [];
+    Object.keys(recMap).forEach(function(id){
+      var r = recMap[id];
+      var a1 = (!have['audio:' + id] && Array.isArray(r.audioMarkers)) ? r.audioMarkers : [];
+      var v1 = (!have['video:' + id] && Array.isArray(r.videoMarkers)) ? r.videoMarkers : [];
+      var all = a1.concat(v1).map(Number).filter(function(x){ return !isNaN(x); }).sort(function(x,y){ return x-y; });
+      if(all.length) lost.push({r:r, t:all});
+    });
+    if(lost.length){
+      var lb = document.createElement('div'); lb.className = 'box';
+      lb.innerHTML = '<b>🚩 أوقات أخطاء لتسجيلات مش موجودة</b><p>التسجيل ضاع بس الأوقات لسه محفوظة في الاختبار:</p>' +
+        lost.map(function(x){ return '<div class="mkrow"><b>' + esc(x.r.student) + '</b> (' + esc(x.r.date || '') + '): ' + x.t.map(function(t){ return '<span class="mk" style="cursor:default">' + fmt(t) + '</span>'; }).join('') + '</div>'; }).join('');
+      list.appendChild(lb);
+    }
+    var v = items.filter(function(i){ return i.kind === 'video'; }).length;
+    var a = items.length - v;
+    var s = document.getElementById('summary');
+    s.innerHTML = 'لقيت <b>' + v + '</b> فيديو و <b>' + a + '</b> تسجيل صوتي.' +
+      ((missA || missV) ? '<br><span class="warn">⚠ فيه ' + missV + ' فيديو و ' + missA + ' تسجيل صوتي مسجلين في الاختبارات بس مش موجودين على المتصفح ده (اتمسحوا أو ما اتحفظوش).</span>' : '');
+    document.getElementById('allBtn').style.display = items.length ? '' : 'none';
+    if(!items.length){
+      list.insertAdjacentHTML('afterbegin', '<div class="box"><b>مالقيتش أي تسجيل على المتصفح ده.</b><p>جرّبي تفتحي الصفحة من نفس متصفح كروم اللي كنتي بتسجلي منه، ومش من تصفح متخفي، ومش بعد مسح بيانات الموقع. ولو الفيديوهات اتنزّلت قبل كده، دوري عليها في فولدر التنزيلات (Downloads) وفي معرض الصور.</p></div>');
+    }
+  }
+
+  async function scan(){
+    var btn = document.getElementById('scanBtn');
+    btn.disabled = true; btn.textContent = '... بدوّر';
+    document.getElementById('log').textContent = '';
+    items = [];
+    try{
+      var recMap = readRecords();
+      var names = await listDbNames();
+      for(var i = 0; i < names.length; i++){
+        var f = await readDb(names[i], recMap);
+        items = items.concat(f);
+      }
+      render(recMap);
+    }catch(e){
+      log('حصل خطأ: ' + (e && e.message ? e.message : e));
+    }
+    btn.disabled = false; btn.textContent = '🔍 ابحثي تاني';
+  }
+
+  document.getElementById('scanBtn').onclick = scan;
+  document.getElementById('allBtn').onclick = async function(){
+    for(var i = 0; i < items.length; i++){
+      triggerDownload(items[i]);
+      await new Promise(function(r){ setTimeout(r, 1200); });
+    }
+  };
+  scan();
+})();
+</script>
+</body>
+</html>
