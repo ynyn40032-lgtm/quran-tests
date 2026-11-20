@@ -1,0 +1,1131 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>تقارير الشيخ — مركز الأمين</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore-compat.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  *{ box-sizing:border-box; }
+  :root{ --navy:#0F2440; --gold:#C7963E; --cream:#FBF8F0; --line:#EAE1C7; --muted:#7C8A7E; --ok:#0F5132; --okbg:#DDF0E3; --bad:#A3312B; --badbg:#F6DCDA; }
+  html,body{ margin:0; min-height:100%; }
+  body{ background:var(--cream); color:var(--navy); font-family:'Cairo','Tajawal',system-ui,sans-serif; padding-bottom:env(safe-area-inset-bottom,0); }
+  header{ background:linear-gradient(160deg,#0F2440,#1E3F66); color:#F4EFDC; padding:calc(14px + env(safe-area-inset-top,0)) 16px 14px; border-bottom:3px solid var(--gold); display:flex; align-items:center; justify-content:space-between; gap:10px; }
+  header h1{ margin:0; font-size:20px; }
+  header small{ display:block; font-size:12px; opacity:.8; direction:ltr; text-align:right; }
+  #logoutBtn{ background:rgba(255,255,255,.15); color:#fff; border:0; border-radius:999px; padding:8px 14px; font:inherit; font-size:13px; cursor:pointer; }
+  main{ max-width:720px; margin:0 auto; padding:14px; }
+  #login{ position:fixed; inset:0; z-index:10; background:linear-gradient(160deg,#0F2440,#1E3F66); display:flex; align-items:center; justify-content:center; padding:20px; }
+  #login .box{ width:100%; max-width:360px; background:var(--cream); border-radius:20px; border-top:4px solid var(--gold); padding:24px 20px; text-align:center; }
+  #login h2{ margin:0 0 4px; }
+  #login p{ margin:0 0 16px; color:var(--muted); font-size:14px; }
+  input{ width:100%; padding:12px; margin-bottom:10px; border:1.5px solid var(--line); border-radius:10px; font:inherit; font-size:16px; background:#fff; }
+  .primary{ width:100%; padding:13px; background:var(--navy); color:#F4EFDC; border:0; border-radius:10px; font:inherit; font-size:16px; font-weight:700; cursor:pointer; }
+  .primary:disabled{ opacity:.6; }
+  #loginMsg{ color:var(--bad); font-size:14px; min-height:20px; margin-top:10px; }
+  #forgot{ color:#9C6F22; font-size:13px; }
+  .chips{ display:flex; gap:8px; overflow-x:auto; padding-bottom:6px; margin-bottom:10px; }
+  .chip{ flex:0 0 auto; border:1.5px solid var(--line); background:#fff; color:var(--navy); border-radius:999px; padding:7px 14px; font:inherit; font-size:14px; cursor:pointer; white-space:nowrap; }
+  .chip.on{ background:var(--navy); color:#F4EFDC; border-color:var(--navy); }
+  .sum{ display:grid; grid-template-columns:repeat(3,1fr); gap:8px; margin-bottom:12px; }
+  .sum div{ background:#fff; border:1px solid var(--line); border-radius:12px; padding:10px 4px; text-align:center; font-size:13px; color:var(--muted); }
+  .sum b{ display:block; font-size:22px; color:var(--navy); }
+  .sum .g b{ color:var(--ok); } .sum .r b{ color:var(--bad); }
+  .cls{ background:#fff; border:1px solid var(--line); border-radius:14px; padding:12px; margin-bottom:12px; }
+  .cls h3{ margin:0 0 6px; display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; font-size:17px; }
+  .cls h3 span{ font-size:13px; font-weight:600; }
+  .row{ display:flex; justify-content:space-between; align-items:center; gap:8px; padding:9px 0; border-top:1px solid var(--line); }
+  .row .meta{ font-size:12px; color:var(--muted); margin-top:2px; line-height:1.6; }
+  .row .note{ font-size:12.5px; margin-top:3px; background:#FFF8E6; border-radius:8px; padding:4px 8px; }
+  .badge{ display:inline-block; border-radius:999px; padding:2px 10px; font-weight:700; font-size:13px; white-space:nowrap; }
+  .badge.ok{ background:var(--okbg); color:var(--ok); } .badge.bad{ background:var(--badbg); color:var(--bad); }
+  .score{ text-align:left; font-size:12px; color:var(--muted); }
+  .new{ display:inline-block; background:var(--bad); color:#fff; border-radius:999px; font-size:11px; padding:0 7px; margin-inline-start:6px; }
+  .empty{ text-align:center; color:var(--muted); padding:40px 10px; line-height:1.9; }
+  header{ padding-left:110px; }
+  .row{ flex-wrap:wrap; }
+  .dt{ flex:1 1 100%; margin-top:2px; }
+  .dt > summary{ cursor:pointer; list-style:none; display:inline-block; font-size:13px; font-weight:700; color:var(--navy); background:#F4EFDC; border-radius:999px; padding:3px 12px; }
+  .dt > summary::-webkit-details-marker{ display:none; }
+  .dt[open] > summary{ background:var(--navy); color:#F4EFDC; }
+  .dt .qq{ border-top:1px dashed var(--line); padding:7px 2px; font-size:13px; line-height:1.9; }
+  .dt .qq:first-of-type{ border-top:0; }
+  .dt .er{ margin:2px 0 0; padding-inline-start:4px; }
+  .dt .wd{ font-family:'UthmanicHafs','Amiri Quran','Amiri',serif; font-size:19px; color:#0F2440; }
+  .dt .sd{ font-family:'UthmanicHafs','Amiri Quran','Amiri',serif; font-size:19px; color:var(--bad); }
+  .dt .fu{ background:#F3F7FD; border:1.5px dashed #3D6AA5; border-radius:10px; padding:6px 10px; margin:6px 0; font-size:13px; line-height:1.9; color:#1F4A7A; }
+  .dt .fut{ display:inline-block; background:#EAF1FB; border:1px solid #3D6AA5; border-radius:8px; padding:0 7px; font-size:12px; font-weight:700; color:#1F4A7A; }
+  .fub{ font-size:12px; font-weight:700; color:#1F4A7A; margin-top:3px; }
+  .dt .ty{ display:inline-block; background:#F6EBD0; border:1px solid #C7963E; border-radius:8px; padding:0 7px; font-size:12px; font-weight:700; color:#5B3F0C; }
+  .dt .pb{ background:#FFF3F1; border-right:4px solid var(--bad); border-radius:6px; padding:4px 9px; margin:5px 0; font-size:13px; }
+  .dt .none{ font-size:12.5px; color:var(--muted); padding:4px 2px; }
+  .lv{ display:inline-block; border-radius:999px; padding:1px 10px; font-size:12px; font-weight:800; color:#fff; margin-inline-start:6px; }
+  .lv.g{ background:#2E6B4A; } .lv.m{ background:#B8860B; } .lv.w{ background:#A3312B; }
+  .csum{ background:#F4EFDC; border-radius:10px; padding:7px 11px; font-size:13px; line-height:1.9; margin:4px 0 6px; }
+.sec{ margin:14px 0 4px; padding:7px 12px; border-radius:10px; background:#0F2440; color:#fff; font-weight:800; font-size:14px; display:flex; justify-content:space-between; gap:8px; } .sec span{ font-weight:600; font-size:12.5px; opacity:.9; }
+  #shareBtn{ background:#C7963E; color:#0F2440; border:0; border-radius:999px; padding:8px 14px; font:inherit; font-size:13px; font-weight:800; cursor:pointer; }
+  #shareBtn:disabled{ opacity:.6; }
+  .hbtns{ display:flex; gap:8px; align-items:center; }
+  #shotBox{ position:absolute; top:0; left:0; width:430px; z-index:-1; background:#FBF8F0; pointer-events:none; }
+  #shotBox header{ padding-left:16px !important; }
+  #shotBox .cls{ margin-bottom:12px; }
+  .tools{ display:flex; gap:8px; flex-wrap:wrap; margin-bottom:10px; }
+  .tools button{ flex:1 1 140px; border:1.5px solid var(--gold); background:#fff; color:var(--navy); border-radius:12px; padding:9px 8px; font:inherit; font-size:13.5px; font-weight:800; cursor:pointer; }
+  .pm{ flex:1 1 100%; margin-top:6px; border:0; background:#E3F2E8; color:#1F5A3B; border-radius:10px; padding:7px 10px; font:inherit; font-size:13px; font-weight:800; cursor:pointer; }
+</style>
+</head>
+<body>
+<div id="login">
+  <div class="box">
+    <div style="font-size:14px;color:#8A4B1E;font-weight:800;margin-bottom:6px">✦ مركز الأمين الثقافي التربوي ✦<div style="font-size:12px;font-weight:700">لتحفيظ القرآن الكريم</div></div><h2>📋 تقارير الشيخ</h2>
+    <p>ادخل بإيميلك وكلمة السر لتشوف الاختبارات</p>
+    <input id="em" type="email" dir="ltr" placeholder="الإيميل" autocomplete="username">
+    <input id="pw" type="password" dir="ltr" placeholder="كلمة السر" autocomplete="current-password">
+    <button id="loginBtn" class="primary" type="button">دخول</button>
+    <div id="loginMsg"></div>
+    <a id="forgot" href="#">نسيت كلمة السر؟</a>
+  </div>
+</div>
+
+<header>
+  <div><div style="font-size:12px;color:#E8C46B;font-weight:800;margin-bottom:2px">✦ مركز الأمين الثقافي التربوي ✦<div style="font-size:11px;font-weight:700;opacity:.9">لتحفيظ القرآن الكريم</div></div><h1>📋 تقارير الشيخ</h1><small id="who"></small></div>
+  <div class="hbtns"><button id="shareBtn" type="button">📤 مشاركة</button><button id="logoutBtn" type="button">خروج</button></div>
+</header>
+
+<main>
+  <div id="pf" class="chips"></div>
+  <div id="chips" class="chips"></div>
+  <div class="tools"><button id="crBtn" type="button" style="background:#0F2440;color:#F4EFDC;border-color:#0F2440">📊 تقرير إجمالي الفصول</button><button id="tcBtn" type="button">👩‍🏫 المحفظات</button><button id="trBtn" type="button">📚 التقارير</button><button id="xlBtn" type="button">⬇ تصدير Excel</button><button id="bkBtn" type="button">💾 نسخة احتياطية</button></div>
+  <div id="sum" class="sum"></div>
+  <div id="list"></div>
+</main>
+
+<script>
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyAjr3fKiGeWU2KOftf52eGogRD2OHq5mpo",
+  authDomain: "quran-tests-645cd.firebaseapp.com",
+  projectId: "quran-tests-645cd",
+  storageBucket: "quran-tests-645cd.firebasestorage.app",
+  messagingSenderId: "946216956918",
+  appId: "1:946216956918:web:1946eb27cff9772dae8dd7"
+};
+const $ = id => document.getElementById(id);
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const SHEIKH_EMAILS = ['sheikh@alamin.com']; // حسابات الشيخ: بتشوف كل الفصول
+const SEEN_KEY = 'teacher:seen';
+let seen = {}, results = [], rosters = [], filter = 'all', first = true, unsub = null;
+try{ seen = JSON.parse(localStorage.getItem(SEEN_KEY) || '{}') || {}; }catch(e){}
+
+function authErr(e){
+  const c = (e && e.code) || '';
+  if(/invalid-credential|wrong-password|user-not-found|invalid-email/.test(c)) return 'الإيميل أو كلمة السر غير صحيحة';
+  if(/too-many/.test(c)) return 'محاولات كتير، استني شوية وجرّبي تاني';
+  if(/network/.test(c)) return 'مفيش اتصال بالنت';
+  return 'حصلت مشكلة، جرّبي تاني';
+}
+
+
+// منع تكرار نفس الاختبار: لو نفس الطالب/التاريخ/الفصل/نوع الاختبار/الدرجة اتبعت أكتر من مرة (من جهازين أو حسابين) بنعرضه مرة واحدة
+const nrm = t => String(t == null ? '' : t).replace(/[\u064B-\u0652\u0640]/g, '').replace(/[أإآ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/\s+/g, ' ').trim().toLowerCase();
+function canonClasses(list){
+  const strip = c => nrm(c).replace(/^فصل\s+/, ''), isF = c => /^\s*فصل\s/.test(c || ''), pref = {};
+  list.forEach(r => { const k = strip(r.className || ''); if(!k) return; const cur = pref[k]; if(!cur || (isF(r.className) && !isF(cur))) pref[k] = r.className; });
+  list.forEach(r => { const k = strip(r.className || ''); if(pref[k]) r.className = pref[k]; });
+  return list;
+}
+function dedupe(list){
+  const m = new Map();
+  list.forEach(r => {
+    const k = r.app === 'surah'
+      ? [nrm(r.student), r.date || '', 'surah', r.grade].join('|')
+      : [nrm(r.student), r.date || '', nrm(r.className), r.app || '', nrm(r.testType), r.grade, r.hizb == null ? '' : r.hizb, r.rub || ''].join('|');
+    const cur = m.get(k);
+    if(!cur || (r.ts || 0) > (cur.ts || 0)) m.set(k, r);
+  });
+  window.__dups = list.length - m.size;
+  return Array.from(m.values());
+}
+if(typeof firebase === 'undefined'){
+  $('loginBtn').disabled = true;
+  $('loginMsg').innerHTML = '⚠️ مقدرتش أحمّل مكتبات الاتصال (Firebase).<br>اتأكدي من النت، أو افتحي البرنامج من Chrome/Safari مش من جوه واتساب، وبعدين <a href="" onclick="location.reload();return false">حدّثي الصفحة</a>.';
+  throw new Error('firebase not loaded');
+}
+/* جلسة دخول مستقلة لصفحات العرض (الشيخ/المعلمات) عشان متتخبطش مع حساب المختبِرة في برنامج الاختبارات */
+const FB_VIEWER = firebase.initializeApp(FIREBASE_CONFIG, 'viewer');
+const auth = FB_VIEWER.auth(), db = FB_VIEWER.firestore();
+
+$('loginBtn').onclick = async () => {
+  const em = $('em').value.trim(), pw = $('pw').value;
+  if(!em || !pw){ $('loginMsg').textContent = 'اكتبي الإيميل وكلمة السر'; return; }
+  $('loginBtn').disabled = true; $('loginMsg').textContent = 'جاري الدخول...';
+  try{ await auth.signInWithEmailAndPassword(em, pw); $('loginMsg').textContent = ''; }
+  catch(e){ $('loginMsg').textContent = authErr(e); }
+  $('loginBtn').disabled = false;
+};
+$('forgot').onclick = async ev => {
+  ev.preventDefault();
+  const em = $('em').value.trim();
+  if(!em){ $('loginMsg').textContent = 'اكتبي الإيميل الأول'; return; }
+  try{ await auth.sendPasswordResetEmail(em); $('loginMsg').textContent = 'اتبعتلك رابط تغيير كلمة السر على الإيميل'; }
+  catch(e){ $('loginMsg').textContent = authErr(e); }
+};
+$('logoutBtn').onclick = async () => { await auth.signOut(); location.reload(); };
+
+auth.onAuthStateChanged(u => {
+  if(unsub){ unsub(); unsub = null; }
+  if(!u){ $('login').style.display = 'flex'; return; }
+  $('login').style.display = 'none';
+  $('who').textContent = u.email || '';
+  // كل معلمة بتشوف بس النتايج اللي ownerEmail بتاعها = إيميلها
+  const _em = String(u.email || '').toLowerCase();
+  const _q = SHEIKH_EMAILS.indexOf(_em) !== -1 ? db.collection('classResults') : db.collection('classResults').where('ownerEmail', '==', _em);
+  unsub = _q
+    .onSnapshot(snap => {
+      const list = []; rosters = []; snap.forEach(d => { const x = d.data(); x.id = d.id; if(x.kind === 'roster'){ rosters.push(x); return; } list.push(x); });
+      results = dedupe(canonClasses(list));
+      render();
+      if(window.__tcRefresh) window.__tcRefresh();
+      try{ if(window.__trRefresh) window.__trRefresh(); }catch(e){}
+      if(window.__crRedraw) window.__crRedraw();
+      else if(first && window.openClassReport) window.openClassReport();
+      if(first){ first = false; }
+    }, err => {
+      $('list').innerHTML = '<div class="empty">⚠️ ماقدرتش أحمّل النتايج.<br>' +
+        (err && err.code === 'permission-denied' ? 'الصلاحيات في قاعدة البيانات مش مفعّلة للمعلمات بعد (اتأكدي من قواعد Firestore).' : 'اتأكدي من النت وجرّبي تاني.') + '</div>';
+    });
+});
+
+
+const TYPE_LABELS = {tsf:'تشكيل: فتحة', tsk:'تشكيل: كسرة', tsd:'تشكيل: ضمة', tss:'تشكيل: سكون', prn:'نطق كلمة غلط', hes:'تردد', fgt:'نسيان كلمة', swW:'تبديل: كلمة مكان كلمة', swA:'تبديل: آية مكان آية', tsh:'تشكيل', swp:'تبديل كلمة'};
+const NOTE_LABELS = {nhs:'⏳ تردد بسيط', nst:'✋ وقف على الكلمة', ncf:'🌀 تلخبط في الكلمة', nfc:'👀 عدم تركيز'};
+const FLAG_LABELS = {loose:'〰️ حفظ متلقلق / غير متقن', many:'⏳ ترددات كتيرة', conf:'🌀 تلخبط في التسميع', stop:'✋ وقفات كتيرة', focus:'👀 عدم تركيز'};
+const gflagsOf = r => { const q = (Array.isArray(r.questions) ? r.questions : [])[0]; return (q && Array.isArray(q.gflags)) ? q.gflags.filter(k => FLAG_LABELS[k]) : []; };
+const fnotesOf = r => { const o = []; (Array.isArray(r.questions) ? r.questions : []).forEach(q => { (Array.isArray(q.fnotes) ? q.fnotes : []).forEach(n => { if(n && n.w && NOTE_LABELS[n.t]) o.push({surah: q.surah || '', word: n.w, ayah: n.a || '', type: n.t}); }); }); return o; };
+const tl = t => TYPE_LABELS[t] || (t ? String(t) : 'نوع غير محدد');
+const AD = n => String(n).replace(/\d/g, d => '٠١٢٣٤٥٦٧٨٩'[d]);
+function pctOf(r){ const g = parseFloat(r.grade); if(isNaN(g) || r.grade === '' || r.grade == null) return null; return g / (r.app === 'surah' ? 10 : 100) * 100; }
+function lvlOf(p){ return p === null ? null : (p >= 95 ? {k:'g', t:'شاطر'} : {k:'w', t:'ضعيف'}); }
+function fixSaid(s){
+  s = String(s || ''); var out = [], cur = '';
+  var flush = function(){ if(!cur) return; var hasV = /[\u064B-\u0650\u08F0-\u08F2]/.test(cur); out.push(hasV ? cur.replace(/[\u0652\u06E1]/g, '') : cur); cur = ''; };
+  Array.from(s).forEach(function(ch){ if(/\p{M}/u.test(ch) && cur) cur += ch; else { flush(); cur = ch; } });
+  flush(); return out.join('');
+}
+function errsOf(r){
+  const out = [];
+  (Array.isArray(r.questions) ? r.questions : []).forEach(q => {
+    String(q.words || '').split(/\s*،\s*/).filter(Boolean).forEach((it, k) => {
+      const m = it.match(/^(.*?)\s*\(آية\s*([^)]*)\)\s*$/);
+      out.push({surah: q.surah || '', word: m ? m[1] : it, ayah: m ? m[2] : '', type: (q.wordTypes || [])[k] || '', said: fixSaid((q.wordSaid || [])[k] || '')});
+    });
+  });
+  return out;
+}
+function topN(map, n){ return Object.keys(map).map(k => [k, map[k]]).sort((a, b) => b[1] - a[1]).slice(0, n); }
+function detailHtml(r){
+  if(!Array.isArray(r.questions) || !r.questions.length){
+    return (r.mistakes > 0) ? '<div class="dt"><div class="none">تفاصيل الأخطاء بالكلمات هتظهر هنا بعد ما المختبِرة تفتح برنامج الاختبارات وتتزامن النتايج.</div></div>' : '';
+  }
+  const p = pctOf(r), lv = lvlOf(p), errs = errsOf(r);
+  const tcount = {}; errs.forEach(e => { const l = tl(e.type); tcount[l] = (tcount[l] || 0) + 1; });
+  let h = '<details class="dt"' + ' open' + '><summary>🔍 تفاصيل الاختبار والأخطاء</summary>';
+  h += '<div style="margin:6px 0 2px;font-size:13px">' + (lv ? 'المستوى:<span class="lv ' + lv.k + '">' + lv.t + '</span> ' : '') + (p !== null ? '<span style="color:var(--muted)">(' + AD(Math.round(p)) + '٪)</span>' : '') + '</div>';
+  if(errs.length){
+    h += '<div class="pb">⚠️ ' + (r.gender === 'f' || r.gender === 'أنثى' || r.gender === 'بنت' ? 'غالب أخطائها: ' : 'غالب أخطائه: ') + topN(tcount, 3).map(x => esc(x[0]) + ' (' + AD(x[1]) + ')').join('، ') + '</div>';
+  }
+  { const _gf = gflagsOf(r), _fn = fnotesOf(r);
+    if(_gf.length || _fn.length){
+      h += '<div class="fu"><b>🔎 محتاج متابعة منكِ (مش محسوبة أخطاء)</b>';
+      if(_gf.length) h += '<div>' + _gf.map(k => '<span class="fut">' + esc(FLAG_LABELS[k]) + '</span>').join(' ') + '</div>';
+      if(_fn.length){ const by = {}; _fn.forEach(e => { (by[e.type] = by[e.type] || []).push(e); });
+        Object.keys(by).forEach(t => { h += '<div>• <span class="fut">' + esc(NOTE_LABELS[t]) + '</span> ' + by[t].map(e => '<span class="wd">' + esc(e.word) + '</span> <span style="color:var(--muted);font-size:12px">(' + esc(e.surah) + (e.ayah ? ' آية ' + esc(AD(e.ayah)) : '') + ')</span>').join('، ') + '</div>'; }); }
+      h += '</div>';
+    } }
+  r.questions.forEach(q => {
+    const items = String(q.words || '').split(/\s*،\s*/).filter(Boolean);
+    h += '<div class="qq"><b>' + esc(q.surah) + '</b>' + (q.ayahRange ? ' <span style="color:var(--muted)">(آيات ' + esc(q.ayahRange) + ')</span>' : '') + ' — ' + (q.mistakes ? 'أخطاء: <b>' + AD(q.mistakes) + '</b>' : '<span style="color:var(--ok)">بدون أخطاء ✨</span>');
+    if(items.length){
+      h += '<div class="er">' + items.map((it, k) => {
+        const m = it.match(/^(.*?)\s*\((آية\s*[^)]*)\)\s*$/), t = (q.wordTypes || [])[k] || '', s = fixSaid((q.wordSaid || [])[k] || '');
+        return '• <span class="wd">' + esc(m ? m[1] : it) + '</span>' + (m ? ' <span style="color:var(--muted);font-size:12px">(' + esc(m[2]) + ')</span>' : '') + (t ? ' <span class="ty">' + esc(tl(t)) + '</span>' : '') + (s ? ' ← قالها «<span class="sd">' + esc(s) + '</span>»' : '');
+      }).join('<br>') + '</div>';
+    }
+    h += ayahBlocks(q);
+    h += '</div>';
+  });
+  if(r.notes) h += '<div class="note" style="margin-top:4px">📝 ' + esc(r.notes) + '</div>';
+  return h + '</details>';
+}
+function ayahBlocks(q){
+  const a = Array.isArray(q.ayahTexts) ? q.ayahTexts.map(p => Array.isArray(p) ? p : (p && typeof p === 'object' ? [p.n, p.t] : null)).filter(p => Array.isArray(p) && p[1]) : [];
+  if(!a.length) return '';
+  const nw = s => String(s || '').replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/\s+/g, '');
+  const m = {};
+  String(q.words || '').split(/\s*،\s*/).filter(Boolean).forEach(it => {
+    const mm = it.match(/^(.*?)\s*\(آية\s*([^)]*)\)\s*$/); if(!mm) return;
+    const n = parseInt(String(mm[2]).replace(/[٠-٩]/g, d => '٠١٢٣٤٥٦٧٨٩'.indexOf(d)), 10);
+    (m[n] = m[n] || []).push(mm[1]);
+  });
+  const chips = [];
+  a.forEach(p => {
+    const n = Number(p[0]), ws = m[n] || [], toks = String(p[1]).split(/\s+/).filter(Boolean), used = {};
+    ws.forEach(w => {
+      let k = toks.findIndex((t, i) => !used[i] && t === w);
+      if(k < 0) k = toks.findIndex((t, i) => !used[i] && nw(t) === nw(w));
+      if(k >= 0) used[k] = 1;
+      chips.push('<span style="display:inline-block;margin:2px 3px;padding:1px 10px;border:1.5px solid #A3312B;border-radius:8px;background:#FDF0EE;white-space:nowrap"><span style="color:#A3312B;font-family:\'UthmanicHafs\',\'Amiri Quran\',\'Amiri\',serif;font-size:20px;font-weight:600">' + esc(k >= 0 ? toks[k] : w) + '</span> <span style="font-size:12px;color:#7a2a25">﴿' + AD(n) + '﴾</span></span>');
+    });
+  });
+  return chips.length ? '<div style="margin:6px 0 2px;line-height:2.1">' + chips.join('') + '</div>' : '';
+}
+function classSummary(rows){
+  const ps = rows.map(pctOf).filter(p => p !== null), c = {g: 0, m: 0, w: 0};
+  ps.forEach(p => { c[lvlOf(p).k]++; });
+  const tcount = {}; rows.forEach(r => errsOf(r).forEach(e => { const l = tl(e.type); tcount[l] = (tcount[l] || 0) + 1; }));
+  const t = topN(tcount, 3);
+  if(!ps.length && !t.length) return '';
+  return '<div class="csum">' + (ps.length ? 'متوسط الفصل: <b>' + AD(Math.round(ps.reduce((a, b) => a + b, 0) / ps.length)) + '٪</b> · <span class="lv g">شاطر ' + AD(c.g) + '</span><span class="lv w">ضعيف ' + AD(c.w) + '</span>' : '') +
+    (t.length ? '<br>أكتر أنواع الأخطاء: <b>' + t.map(x => esc(x[0]) + ' (' + AD(x[1]) + ')').join('، ') + '</b>' : '') + '</div>';
+}
+
+let PER = 'today', KIND = 'all';
+const todayIso = () => { const d = new Date(), p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
+const weekIso = () => { const d = new Date(); d.setDate(d.getDate() - 6); const p = n => String(n).padStart(2, '0'); return d.getFullYear() + '-' + p(d.getMonth() + 1) + '-' + p(d.getDate()); };
+function passPT(r){
+  const d = String(r.date || '').slice(0, 10);
+  if(PER === 'today' && d !== todayIso()) return false;
+  if(PER === 'week' && (!d || d < weekIso())) return false;
+  if(KIND === 'j' && r.app === 'surah') return false;
+  if(KIND === 's' && r.app !== 'surah') return false;
+  return true;
+}
+const visible = () => results.filter(passPT).filter(r => filter === 'all' || r.className === filter);
+function render(){
+  $('pf').innerHTML = [['today','📅 النهاردة'],['week','آخر ٧ أيام'],['all','كل الفترات']].map(x => `<button type="button" class="chip ${PER === x[0] ? 'on' : ''}" data-p="${x[0]}">${x[1]}</button>`).join('') +
+    [['all','الكل'],['j','📖 جزء'],['s','🎙️ سورة']].map(x => `<button type="button" class="chip ${KIND === x[0] ? 'on' : ''}" data-t="${x[0]}" style="border-style:dashed">${x[1]}</button>`).join('');
+  const classes = [...new Set(results.filter(passPT).map(r => r.className).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar'));
+  if(filter !== 'all' && !classes.includes(filter)) filter = 'all';
+
+  $('chips').innerHTML = classes.length > 1
+    ? ['all'].concat(classes).map(c => `<button type="button" class="chip ${c === filter ? 'on' : ''}" data-c="${esc(c)}">${c === 'all' ? 'كل الفصول' : esc(c)}</button>`).join('')
+    : '';
+
+  const shown = visible();
+  const ok = shown.filter(r => r.status === 'ناجح').length;
+  $('sum').innerHTML = shown.length
+    ? `<div><b>${shown.length}</b>اختبار</div><div class="g"><b>${ok}</b>ناجح</div><div class="r"><b>${shown.length - ok}</b>راسب</div>`
+    : '';
+  if(shown.length && window.__dups > 0) $('sum').insertAdjacentHTML('beforeend', '<div style="grid-column:1/-1;background:none;border:0;padding:0;font-size:12px">تم إخفاء ' + window.__dups + ' نتيجة مكررة</div>');
+
+  if(!shown.length){
+    $('list').innerHTML = '<div class="empty">📭 مفيش اختبارات ' + (PER === 'today' ? 'النهاردة لسه' : (PER === 'week' ? 'في آخر ٧ أيام' : 'لسه')) + '.<br>أول ما يتسجل اختبار هيظهر هنا تلقائيًا.' + (PER !== 'all' ? '<br>تقدر تضغط «كل الفترات» فوق.' : '') + '</div>';
+    return;
+  }
+  const rowHtml = r => {
+        const pass = r.status === 'ناجح';
+        const label = r.gender === 'f' || r.gender === 'أنثى' || r.gender === 'بنت' ? (pass ? 'ناجحة' : 'راسبة') : (pass ? 'ناجح' : 'راسب');
+        const isNew = !seen[r.id];
+        const sq = (r.app === 'surah' && Array.isArray(r.questions)) ? r.questions.filter(q => q && q.surah) : [];
+        const where = r.app === 'surah'
+          ? (sq.length ? sq.map(q => 'سورة ' + q.surah + (q.ayahRange ? ' (آيات ' + q.ayahRange + ')' : '')).join('، ') : 'سورة جديدة')
+          : (r.testType || '');
+        const part = [r.hizb !== '' && r.hizb != null ? 'حزب ' + r.hizb : '', r.rub ? 'ربع ' + r.rub : ''].filter(Boolean).join(' · ');
+        return `<div class="row"><div>
+            <b>${esc(r.student)}</b>${(pctOf(r) !== null && pctOf(r) >= 95) ? '<span style="color:#2E6B4A;font-weight:800;font-size:12px"> ما شاء الله 🌟</span>' : ''}${isNew ? '<span class="new">جديد</span>' : ''}
+            <div class="meta">${esc(r.date || '')}${where ? ' · ' + esc(where) : ''}${part ? ' · ' + esc(part) : ''}${r.supervisorName ? ' · المختبِر/ة: ' + esc(r.supervisorName) : ''}${r.demotedTo ? ' · 🔻 اتنقل لـ ' + esc(r.demotedTo) : ''}</div>
+            ${r.notes ? `<div class="note">📝 ${esc(r.notes)}</div>` : ''}
+            ${(gflagsOf(r).length || fnotesOf(r).length) ? `<div class="fub">🔎 فيه ملاحظات متابعة (التفاصيل تحت)</div>` : ''}
+          </div>
+          <div class="score"><span class="badge ${pass ? 'ok' : 'bad'}">${label}</span><div>${esc(r.grade)} · أخطاء ${esc(r.mistakes || 0)}</div></div>${detailHtml(r)}</div>`;
+  };
+  const sec = (title, list) => { if(!list.length) return ''; const o = list.filter(r => r.status === 'ناجح').length;
+    return '<div class="sec">' + title + ' <span>(' + AD(list.length) + ') ✅ ' + AD(o) + ' · ❌ ' + AD(list.length - o) + '</span></div>' + classSummary(list) + list.map(rowHtml).join(''); };
+  const by = {};
+  shown.forEach(r => { const kd = r.app === 'surah' ? 's' : 'j', key = r.className + '||' + kd; (by[key] = by[key] || []).push(r); });
+  const kindInfo = (rows, kd) => {
+    const set = [], add = x => { if(x && set.indexOf(x) === -1) set.push(x); };
+    rows.forEach(r => {
+      if(kd === 's'){ (Array.isArray(r.questions) ? r.questions : []).forEach(q => { if(q && q.surah) add('سورة ' + q.surah); }); }
+      else { add([r.testType || '', r.hizb !== '' && r.hizb != null ? 'حزب ' + r.hizb : '', r.rub ? 'ربع ' + r.rub : ''].filter(Boolean).join(' — ')); }
+    });
+    return set.length ? '<div class="csum"><b>' + (kd === 's' ? 'السور المختبَر فيها: ' : 'الأجزاء المختبَر فيها: ') + '</b>' + set.map(esc).join(' • ') + '</div>' : '';
+  };
+  $('list').innerHTML = Object.keys(by).sort((a, b) => { const x = a.split('||'), y = b.split('||'); return x[0].localeCompare(y[0], 'ar') || x[1].localeCompare(y[1]); }).map(key => {
+    const cn = key.split('||')[0], kd = key.split('||')[1];
+    const rows = by[key].sort((a, b) => (b.ts || 0) - (a.ts || 0));
+    const o = rows.filter(r => r.status === 'ناجح').length;
+    const isG = r => { const p = pctOf(r); return p !== null && p >= 95; }; const wk = rows.filter(r => !isG(r)), gd = rows.filter(isG);
+    return `<div class="cls"><h3><span style="font-size:17px">${esc(cn)} <span style="font-size:13px;font-weight:700">${kd === 's' ? '🎙️ اختبار على سورة' : '📖 اختبار على جزء'}</span></span><span>✅ ${o} ناجح · ❌ ${rows.length - o} راسب</span></h3>` +
+      kindInfo(rows, kd) + sec('⚠️ الضعاف (أقل من ٩٥٪)', wk) + sec('🌟 الشطار (٩٥٪ فأكثر)', gd) + '</div>';
+  }).join('');
+
+  // علّمي اللي ظهر على إنه اتشاف
+  setTimeout(() => {
+    shown.forEach(r => { seen[r.id] = 1; });
+    try{ localStorage.setItem(SEEN_KEY, JSON.stringify(seen)); }catch(e){}
+  }, 4000);
+}
+$('pf').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if(!b) return;
+  if(b.dataset.p) PER = b.dataset.p; if(b.dataset.t) KIND = b.dataset.t; render();
+});
+$('chips').addEventListener('click', e => {
+  const b = e.target.closest('.chip'); if(!b) return;
+  filter = b.dataset.c; render();
+});
+// ===== مشاركة التقرير كصورة على واتساب =====
+function shotBlob(canvas){ return new Promise(res => canvas.toBlob(res, 'image/png')); }
+async function buildShots(){
+  const box = document.createElement('div'); box.id = 'shotBox';
+  const hd = document.querySelector('header').cloneNode(true);
+  const hb = hd.querySelector('.hbtns'); if(hb) hb.remove();
+  box.appendChild(hd);
+  const main = document.createElement('main');
+  main.style.cssText = 'padding:14px;max-width:none';
+  const f = filter !== 'all' ? '<div style="text-align:center;font-weight:800;margin-bottom:8px">' + esc(filter) + '</div>' : '';
+  main.innerHTML = f + '<div class="sum">' + $('sum').innerHTML + '</div><div>' + $('list').innerHTML + '</div>';
+  box.appendChild(main);
+  document.body.appendChild(box);
+  try{
+    if(document.fonts && document.fonts.ready) await document.fonts.ready;
+    const opt = {backgroundColor:'#FBF8F0', useCORS:true, logging:false, scrollX:0, scrollY:0, windowWidth:430};
+    const W = box.offsetWidth, H = box.offsetHeight;
+    // لو الطول كبير أوي نقسّم الصور على حدود كروت الفصول عشان الموبايل مايرفضش
+    if(W * H * 4 <= 14e6){
+      const c = await html2canvas(box, Object.assign({scale:2}, opt));
+      return [await shotBlob(c)];
+    }
+    const out = [];
+    const cards = Array.from(box.querySelectorAll('.cls'));
+    const groups = []; let cur = [], curH = 0;
+    cards.forEach(c => { const h = c.offsetHeight; if(cur.length && curH + h > 3200){ groups.push(cur); cur = []; curH = 0; } cur.push(c); curH += h; });
+    if(cur.length) groups.push(cur);
+    for(let i = 0; i < groups.length; i++){
+      const keep = new Set(groups[i]);
+      cards.forEach(c => { c.style.display = keep.has(c) ? '' : 'none'; });
+      main.querySelector('.sum').style.display = i === 0 ? '' : 'none';
+      hd.style.display = i === 0 ? '' : 'none';
+      const c = await html2canvas(box, Object.assign({scale:2}, opt));
+      out.push(await shotBlob(c));
+    }
+    return out;
+  } finally { box.remove(); }
+}
+$('shareBtn').addEventListener('click', async () => {
+  const btn = $('shareBtn'); const old = btn.textContent;
+  if(typeof html2canvas === 'undefined'){ alert('محتاج إنترنت عشان تجهيز الصورة. جرّبي تاني.'); return; }
+  btn.disabled = true; btn.textContent = '⏳ بجهّز الصورة...';
+  try{
+    const blobs = await buildShots();
+    const d = new Date().toISOString().slice(0, 10);
+    const files = blobs.map((b, i) => new File([b], 'تقارير-الشيخ-' + d + (blobs.length > 1 ? '-' + (i + 1) : '') + '.png', {type:'image/png'}));
+    if(navigator.canShare && navigator.canShare({files})){
+      try{ await navigator.share({files, title:'تقارير الشيخ'}); }
+      catch(e){ if(e && e.name === 'AbortError') return; throw e; }
+    } else {
+      files.forEach(f => { const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); a.remove(); });
+      alert('المتصفح مش بيدعم المشاركة المباشرة، فالصورة اتحفظت في الجهاز. افتحي واتساب وابعتيها من المعرض.');
+    }
+  }catch(e){ alert('حصلت مشكلة في تجهيز الصورة: ' + (e && e.message || e)); }
+  finally{ btn.disabled = false; btn.textContent = old; }
+});
+
+// ===== 💬 رسالة لولي الأمر + ⬇ تصدير Excel + 💾 نسخة احتياطية =====
+const isFem = r => r.gender === 'f' || r.gender === 'أنثى' || r.gender === 'بنت';
+function parentMsg(r){
+  const f = isFem(r), p = pctOf(r), who = f ? 'الطالبة' : 'الطالب', nm = r.student || '';
+  const qs = (Array.isArray(r.questions) ? r.questions : []).filter(q => q && q.surah);
+  const where = r.app === 'surah' ? (qs.length ? 'سورة ' + qs.map(q => q.surah).join(' و') : 'سورة جديدة')
+    : [r.testType || 'القرآن', r.hizb !== '' && r.hizb != null ? 'حزب ' + AD(r.hizb) : '', r.rub ? 'ربع ' + AD(r.rub) : ''].filter(Boolean).join(' ');
+  const wrong = qs.filter(q => +q.mistakes > 0).map(q => q.surah + ' (' + (+q.mistakes === 1 ? 'خطأ واحد' : (+q.mistakes === 2 ? 'خطآن' : AD(q.mistakes) + ' أخطاء')) + ')');
+  const clean = qs.filter(q => !(+q.mistakes > 0)).map(q => q.surah);
+  const gr = 'الدرجة: ' + AD(r.grade) + (r.app === 'surah' ? ' من ١٠' : ' من ١٠٠') + ' — ' + where + (r.date ? ' (' + r.date + ')' : '') + '\n';
+  let m = 'السلام عليكم ورحمة الله وبركاته\nولي أمر ' + who + ': ' + nm + '\n\n';
+  if(p === null){ m += 'تم اختبار ' + who + ' في ' + where + '.\n'; }
+  else if(p >= 95){
+    m += 'يسرّنا إبلاغكم أن ' + who + ' اجتاز' + (f ? 'ت' : '') + ' الاختبار بتقدير ممتاز، ما شاء الله 🌟\n' + gr;
+    if(clean.length) m += 'السور بدون أخطاء: ' + clean.join('، ') + '\n';
+    if(wrong.length) m += 'السور التي فيها أخطاء: ' + wrong.join('، ') + '\n';
+    m += '\nبارك الله ' + (f ? 'فيها وزادها' : 'فيه وزاده') + ' حرصًا.\n';
+  }else if(p >= 90){
+    m += who + ' ناجح' + (f ? 'ة' : '') + ' بحمد الله، لكن ' + (f ? 'تحتاج' : 'يحتاج') + ' إلى متابعة ومراجعة في البيت.\n' + gr;
+    if(wrong.length) m += 'السور التي نرجو مراجعتها: ' + wrong.join('، ') + '\n';
+  }else{
+    m += 'نفيدكم بنتيجة اختبار ' + who + ':\n' + gr + 'المستوى: يحتاج إلى دعم ومتابعة أكبر قبل الاختبار القادم.\n';
+    if(wrong.length) m += 'السور التي فيها أخطاء: ' + wrong.join('، ') + '\n';
+    m += 'نرجو المتابعة اليومية في البيت حتى ' + (f ? 'تتقن' : 'يتقن') + ' الحفظ بإذن الله.\n';
+  }
+  return m + '\nجزاكم الله خيرًا\nمركز الأمين الثقافي التربوي لتحفيظ القرآن الكريم';
+}
+$('list').addEventListener('click', e => {
+  const b = e.target.closest('.pm'); if(!b) return;
+  const r = results.find(x => String(x.id) === b.dataset.id); if(!r) return;
+  const url = 'https://wa.me/?text=' + encodeURIComponent(parentMsg(r));
+  const w = window.open(url, '_blank');
+  if(!w){ try{ navigator.clipboard.writeText(parentMsg(r)); alert('اتنسخت الرسالة، الصقيها في واتساب ✓'); }catch(_){ prompt('انسخي الرسالة:', parentMsg(r)); } }
+});
+function dlFile(name, text, mime){ const b = new Blob([text], {type: mime}); const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; document.body.appendChild(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 800); }
+const csvCell = c => { c = String(c == null ? '' : c); return /[",\n\r]/.test(c) ? '"' + c.replace(/"/g, '""') + '"' : c; };
+$('xlBtn').addEventListener('click', () => {
+  const rows = visible().slice().sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+  if(!rows.length){ alert('مفيش نتايج تتصدّر.'); return; }
+  const out = [['التاريخ', 'الفصل', 'اسم الطالب', 'نوع الاختبار', 'السور / الجزء', 'الدرجة', 'النسبة ٪', 'النتيجة', 'عدد الأخطاء', 'المختبِر/ة', 'ملاحظات']];
+  rows.forEach(r => {
+    const qs = (Array.isArray(r.questions) ? r.questions : []).filter(q => q && q.surah).map(q => q.surah + (q.ayahRange ? ' (' + q.ayahRange + ')' : '')).join(' / ');
+    const part = [r.testType || '', r.hizb !== '' && r.hizb != null ? 'حزب ' + r.hizb : '', r.rub ? 'ربع ' + r.rub : ''].filter(Boolean).join(' - ');
+    const p = pctOf(r);
+    out.push([r.date || '', r.className || '', r.student || '', r.app === 'surah' ? 'اختبار سورة' : 'اختبار جزء', qs || part, r.grade, p === null ? '' : Math.round(p * 10) / 10, r.status || '', r.mistakes || 0, r.supervisorName || '', r.notes || '']);
+  });
+  dlFile('تقارير-الشيخ-' + new Date().toISOString().slice(0, 10) + '.csv', '\ufeff' + out.map(r => r.map(csvCell).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+});
+$('bkBtn').addEventListener('click', () => {
+  if(!results.length){ alert('مفيش نتايج تتحفظ.'); return; }
+  dlFile('نسخة-تقارير-الشيخ-' + new Date().toISOString().slice(0, 10) + '.json', JSON.stringify({v: 1, saved: new Date().toISOString(), results}, null, 1), 'application/json');
+});
+
+/* ===== 📊 تقرير إجمالي بنتائج الفصول (نفس تقرير برنامج الاختبارات، بيقرا من نتايج Firebase) ===== */
+(function(){
+  const AR = '٠١٢٣٤٥٦٧٨٩', ad = s => String(s).replace(/\d/g, d => AR[d]);
+  const p2 = n => String(n).padStart(2, '0');
+  const isoD = d => d.getFullYear() + '-' + p2(d.getMonth() + 1) + '-' + p2(d.getDate());
+  const dOf = r => {
+    let d = r.date;
+    if(d && typeof d.toDate === 'function') d = d.toDate();
+    if(d instanceof Date) return isNaN(d) ? '' : isoD(d);
+    d = String(d == null ? '' : d).replace(/[\u0660-\u0669]/g, c => c.charCodeAt(0) - 0x0660).replace(/[\u06F0-\u06F9]/g, c => c.charCodeAt(0) - 0x06F0).trim();
+    let m = d.match(/(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})/); if(m) return m[1] + '-' + p2(m[2]) + '-' + p2(m[3]);
+    m = d.match(/(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4})/); if(m) return m[3] + '-' + p2(m[2]) + '-' + p2(m[1]);
+    return d.slice(0, 10);
+  };
+  const isS = r => r.app === 'surah';
+  const fem = r => r.gender === 'f' || r.gender === 'أنثى' || r.gender === 'بنت';
+  const passOf = r => r.status === 'ناجح';
+  const valid = r => r && r.student && r.grade !== '' && r.grade != null;
+
+  const css = document.createElement('style');
+  css.textContent =
+    '#clsRepOv{position:fixed;inset:0;z-index:2147483647;background:#1b2d4a;overflow:auto;padding:10px;direction:rtl;font-family:Cairo,Tahoma,Arial,sans-serif}' +
+    '#clsRepOv .cr-box{background:#fff;color:#111;max-width:820px;margin:0 auto;border-radius:14px;padding:14px;box-sizing:border-box}' +
+    '#clsRepOv .cr-ctl{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:flex-end;padding:10px;margin-bottom:12px;background:#f6f1e3;border:1px solid #C7963E;border-radius:10px;font-size:13px}' +
+    '#clsRepOv .cr-ctl label{display:flex;flex-direction:column;gap:3px;font-weight:700}' +
+    '#clsRepOv .cr-ctl label.ck{flex-direction:row;align-items:center;gap:6px}' +
+    '#clsRepOv .cr-ctl select,#clsRepOv .cr-ctl input[type=date]{font:inherit;padding:6px;border:1px solid #aaa;border-radius:8px;margin:0;width:auto}' +
+    '#clsRepOv .cr-ctl input[type=date]{min-width:150px;min-height:38px}' +
+    '#clsRepOv .cr-ctl input[type=checkbox]{width:auto;margin:0}' +
+    '#clsRepOv .cr-ctl button{font:inherit;font-weight:800;border:0;border-radius:10px;padding:9px 16px;cursor:pointer}' +
+    '#clsRepOv .cr-acts{display:flex;flex-wrap:wrap;gap:8px;width:100%}' +
+    '#clsRepOv .cr-acts button{flex:1 1 40%;font-size:15px}' +
+    '#crExp{position:fixed;left:0;top:0;z-index:-1;width:794px;background:#fff;color:#111;box-sizing:border-box;padding:18px;direction:rtl;font-family:Cairo,Tahoma,Arial,sans-serif;pointer-events:none}' +
+    '.cr-head{text-align:center;margin-bottom:10px}.cr-head .c{font-size:24px;font-weight:800;color:#0F2440}.cr-head .t{font-size:19px;font-weight:800}.cr-head .d{font-size:15px;color:#555}' +
+    '.cr-sec{margin-bottom:16px}.cr-sec h3{font-size:19px;line-height:1.6;margin:0 0 6px}.cr-sec h3 small{font-size:15px;font-weight:600}' +
+    '#clsRepOv table,#crExp table{width:100%;border-collapse:collapse;font-size:19px;table-layout:auto}' +
+    '#clsRepOv th,#clsRepOv td,#crExp th,#crExp td{border:1px solid #444;padding:8px 7px;line-height:1.5;text-align:center}' +
+    '#clsRepOv th,#crExp th{background:#eadfbd;font-weight:800}' +
+    '#clsRepOv td.nm{text-align:right;white-space:nowrap}#crExp td.nm{text-align:right;white-space:normal}' +
+    '#clsRepOv #crBody{width:794px;max-width:none;box-sizing:border-box}' +
+    '#clsRepOv tr,#crExp tr{break-inside:avoid}' +
+    '@media print{.cr-diag{display:none!important}}' +
+    '.cr-abs{margin-top:6px;padding:8px 10px;border:1.5px solid #b02a2a;border-radius:8px;background:#fdf1f1;color:#8A1F1F;font-size:17px;line-height:1.9}.cr-abs.ok{border-color:#1a7a3c;background:#eff8f1;color:#1a7a3c;font-weight:700}' +
+    '.cr-ok{color:#1a7a3c;font-weight:800}.cr-no{color:#b02a2a;font-weight:800}' +
+    '@media print{html.cr-open body>*:not(#clsRepOv){display:none!important}html.cr-open body>#clsRepOv{display:block!important}#clsRepOv{position:static!important;background:#fff!important;padding:0!important;overflow:visible!important}#clsRepOv .cr-box{max-width:none!important;padding:0!important;border-radius:0!important}#clsRepOv .cr-ctl{display:none!important}#clsRepOv #crBody{width:auto!important;zoom:1!important}#clsRepOv .pg{break-after:page}#clsRepOv .pg:last-child{break-after:auto}}';
+  document.head.appendChild(css);
+
+  function latestPerStudent(list){
+    const m = {};
+    list.forEach(r => {
+      const k = (isS(r) ? 's' : 'j') + '|' + nrm(r.className) + '|' + nrm(r.student), cur = m[k];
+      if(!cur || (dOf(r) + String(r.ts || 0).padStart(15, '0')) > (dOf(cur) + String(cur.ts || 0).padStart(15, '0'))) m[k] = r;
+    });
+    return Object.keys(m).map(k => m[k]);
+  }
+  function compute(o){
+    let list = results.filter(valid);
+    if(!o.surah) list = list.filter(r => !isS(r));
+    if(o.cls) list = list.filter(r => (r.className || 'بدون فصل') === o.cls);
+    if(o.br) list = list.filter(r => String(r.branch || '').trim() === o.br);
+    if(o.from) list = list.filter(r => dOf(r) >= o.from);
+    if(o.to) list = list.filter(r => dOf(r) <= o.to);
+    if(o.latest) list = latestPerStudent(list);
+    const g = {};
+    list.forEach(r => { const c = String(r.className || '').trim() || 'بدون فصل', k = c + '\u0001' + (isS(r) ? 's' : 'j'); (g[k] = g[k] || {name: c, rows: []}).rows.push(r); });
+    return Object.keys(g).sort((a, b) => g[a].name.localeCompare(g[b].name, 'ar') || (a < b ? -1 : a > b ? 1 : 0)).map(k => ({name: g[k].name, rows: g[k].rows.sort((a, b) => String(a.student).localeCompare(String(b.student), 'ar') || (a.ts || 0) - (b.ts || 0))}));
+  }
+  function subject(r){
+    if(isS(r)){ const s = []; (Array.isArray(r.questions) ? r.questions : []).forEach(q => { if(q && q.surah && s.indexOf(q.surah) < 0) s.push(q.surah); }); return s.length ? 'سورة ' + s.join('، ') : ''; }
+    return [r.testType || '', r.hizb !== '' && r.hizb != null ? 'حزب ' + r.hizb : '', r.rub ? 'ربع ' + r.rub : ''].filter(Boolean).join(' — ');
+  }
+  /* ===== الغايبين: طلاب كشف الفصل (اللي بيبعته برنامج الاختبارات) اللي مااتختبروش في التقرير ده ===== */
+  const nm2 = s => String(s == null ? '' : s).replace(/[\u200B-\u200F\u202A-\u202E\u2066-\u2069\uFEFF]/g, '').replace(/[\u0610-\u061A\u064B-\u065F\u0670\u06D6-\u06ED\u0640]/g, '').replace(/[أإآٱ]/g, 'ا').replace(/ؤ/g, 'و').replace(/ئ/g, 'ي').replace(/ى/g, 'ي').replace(/ة/g, 'ه').replace(/[^\u0621-\u064A0-9\s]/g, ' ').replace(/\s+/g, ' ').trim();
+  const lev1 = (x, y) => { if(x === y) return true; if(Math.abs(x.length - y.length) > 1) return false; let i = 0; while(i < x.length && i < y.length && x[i] === y[i]) i++; if(x.length === y.length) return x.slice(i + 1) === y.slice(i + 1); return x.length > y.length ? x.slice(i + 1) === y.slice(i) : y.slice(i + 1) === x.slice(i); };
+  const wEq = (x, y) => x === y || (x.length >= 5 && y.length >= 5 && lev1(x, y));
+  const sameStu = (a, b) => { if(a === b) return true; const A = a.split(' '), B = b.split(' '), sh = A.length <= B.length ? A : B, lg = A.length <= B.length ? B : A; if(sh.length < 3) return false; for(let i = 0; i < sh.length; i++){ if(!wEq(sh[i], lg[i])) return false; } return true; };
+  const clsKey = c => nrm(c).replace(/^فصل\s+/, '');
+  const dayW = n => n === 1 ? 'يوم واحد' : n === 2 ? 'يومين' : (n >= 3 && n <= 10) ? ad(n) + ' أيام' : ad(n) + ' يوم';
+  function absentMap(gs, o){
+    const out = {}, names = [...new Set(gs.map(g => g.name))];
+    const inR = d => (!o.from || d >= o.from) && (!o.to || d <= o.to);
+    names.forEach(cn => {
+      const ros = rosters.filter(x => clsKey(x.className) === clsKey(cn) && (!o.br || !x.branch || String(x.branch).trim() === o.br));
+      if(!ros.length) return;
+      const roster = [], abs = {};
+      ros.forEach(x => {
+        (Array.isArray(x.students) ? x.students : []).forEach(n => { n = String(n || '').trim(); if(n && !roster.some(m => sameStu(nm2(m), nm2(n)))) roster.push(n); });
+        (Array.isArray(x.absences) ? x.absences : []).forEach(a => { const k = nm2(a && a.n); if(!k) return; const set = abs[k] || (abs[k] = []); (Array.isArray(a.d) ? a.d : []).forEach(d => { if(inR(String(d)) && set.indexOf(d) < 0) set.push(d); }); });
+      });
+      const daysOf = n => { const k = nm2(n); let c = 0; Object.keys(abs).forEach(a => { if(sameStu(k, a)) c = Math.max(c, abs[a].length); }); return c; };
+      const tested = []; gs.filter(g => g.name === cn).forEach(g => g.rows.forEach(r => { const k = nm2(r.student); if(k && tested.indexOf(k) < 0) tested.push(k); }));
+      const used = {}, absent = [];
+      roster.forEach(n => {
+        const k = nm2(n); let hit = -1;
+        for(let i = 0; i < tested.length; i++){ if(!used[i] && sameStu(k, tested[i])){ hit = i; break; } }
+        if(hit >= 0) used[hit] = 1;
+        const d = daysOf(n);
+        if(hit < 0) absent.push({name: n, days: d, tested: false});
+        else if(d) absent.push({name: n, days: d, tested: true}); /* غاب في الفترة دي حتى لو اختبر بعدها */
+      });
+      out[cn] = {absent, total: roster.length, daysOf};
+    });
+    return out;
+  }
+  function bodyHtml(o){
+    const gs = compute(o), today = ad(new Date().toLocaleDateString('en-GB'));
+    let h = '<div class="cr-head"><div class="c">مركز الأمين الثقافي التربوي</div><div class="t">تقرير إجمالي بنتائج الفصول — ' + (o.surah ? 'اختبارات القرآن واختبار على سورة' : 'اختبارات القرآن') + '</div><div class="d">' + today + '</div></div>';
+    if(!gs.length) return h + '<div style="text-align:center;padding:20px;color:#777;font-weight:700">' + ((o.from && o.from === o.to) ? 'لا يوجد اختبار لليوم ده' : (o.from ? 'لا يوجد اختبار في الفترة دي' : 'مفيش اختبارات تطابق الاختيار ده.')) + '</div>';
+    const AB = absentMap(gs, o), abShown = {};
+    gs.forEach((g, gi) => {
+      let pass = 0, fail = 0;
+      const ab = (AB[g.name] && !abShown[g.name]) ? (abShown[g.name] = AB[g.name]) : null, ab0 = AB[g.name];
+      const rows = g.rows.map((r, i) => {
+        const n = Number(r.grade), p = passOf(r); if(p) pass++; else fail++;
+        const label = p ? (fem(r) ? 'ناجحة' : 'ناجح') : (fem(r) ? 'راسبة' : 'راسب');
+        const gr = isNaN(n) ? esc(r.grade) : ad(n) + '/' + ad(isS(r) ? 10 : 100);
+        const ms = (r.mistakes === '' || r.mistakes == null) ? '-' : ad(r.mistakes);
+        return '<tr><td style="width:44px">' + ad(i + 1) + '</td><td class="nm">' + esc(r.student) + (function(){ const dd = ab0 && ab0.daysOf ? ab0.daysOf(r.student) : 0; return dd ? '<div style="font-size:12px;font-weight:700;color:#8A1F1F;white-space:normal">غاب: ' + dayW(dd) + '</div>' : ''; })() + '</td><td>' + ms + '</td><td>' + gr + '</td><td class="' + (p ? 'cr-ok' : 'cr-no') + '">' + label + '</td></tr>';
+      }).join('');
+      const sv = [], sj = [], ss = [];
+      g.rows.forEach(r => { const v = String(r.supervisorName || '').trim(); if(v && sv.indexOf(v) < 0) sv.push(v); if(!isS(r)){ const t = subject(r); if(t && sj.indexOf(t) < 0) sj.push(t); } else { (Array.isArray(r.questions) ? r.questions : []).forEach(q => { if(q && q.surah && ss.indexOf(q.surah) < 0) ss.push(q.surah); }); } });
+      h += '<div class="cr-sec' + (o.pages && gi < gs.length - 1 ? ' pg' : '') + '"><h3>الفصل: ' + esc(g.name) +
+        ' <span style="color:#8A6A20">— المحفظ/ة: ' + (sv.length ? esc(sv.join('، ').replace(/^\s*أ\s*[.\/]\s*/, '')) : 'غير محددة') + '</span>' +
+        (sj.length ? ' <span style="color:#1d4f8a">— ' + esc(sj.join('، ')) + '</span>' : '') +
+        (ss.length ? ' <span style="color:#1d4f8a">— السورة: ' + esc(ss.join('، ')) + '</span>' : '') +
+        ' <small>(عدد الطلاب: ' + ad(g.rows.length) + ' — ناجح: ' + ad(pass) + ' — راسب: ' + ad(fail) + (ab ? ' — <span style="color:#8A1F1F">غايب: ' + ad(ab.absent.length) + '</span>' : '') + ')</small></h3>' +
+        '<table><thead><tr><th>م</th><th>الإسم</th><th>عدد الأخطاء</th><th>الدرجة</th><th>النتيجة</th></tr></thead><tbody>' + rows + '</tbody></table>' +
+        (ab ? (ab.absent.length ? '<div class="cr-abs"><b>الغايبين (' + ad(ab.absent.length) + '):</b> ' + ab.absent.map((x, k) => ad(k + 1) + '. ' + esc(x.name) + (x.days ? ' <small>(غاب: ' + dayW(x.days) + (x.tested ? ' — واختبر بعدها' : '') + ')</small>' : '')).join(' &nbsp;•&nbsp; ') + '</div>' : '<div class="cr-abs ok">✅ مفيش غايبين (كل طلاب الفصل اتختبروا)</div>') : '') + '</div>';
+    });
+    return h;
+  }
+  function diagHtml(o){
+    const cn = r => String(r.className || '').trim() || 'بدون فصل', bad = [];
+    results.forEach(r => {
+      if(o.cls && cn(r) !== o.cls) return;
+      const d = dOf(r); let why = '';
+      if(!r.student || r.grade === '' || r.grade == null) why = 'مفيش اسم طالب أو درجة';
+      else if(!o.surah && isS(r)) why = 'اختبار على سورة (الخانة مش متعلّمة)';
+      else if(!/^\d{4}-\d{2}-\d{2}$/.test(d)) why = 'تاريخ غير مقروء: ' + esc(r.date == null ? 'فاضي' : (r.date.toDate ? 'Timestamp' : r.date));
+      else if((o.from && d < o.from) || (o.to && d > o.to)) why = 'تاريخه ' + ad(d) + ' خارج الفترة';
+      if(why) bad.push(esc(cn(r)) + ' — ' + esc(r.student || '(بدون اسم)') + ' — ' + why);
+    });
+    let inRange = results.filter(valid); if(!o.surah) inRange = inRange.filter(r => !isS(r));
+    if(o.cls) inRange = inRange.filter(r => cn(r) === o.cls);
+    if(o.from) inRange = inRange.filter(r => dOf(r) >= o.from);
+    if(o.to) inRange = inRange.filter(r => dOf(r) <= o.to);
+    const hiddenOld = o.latest ? inRange.length - latestPerStudent(inRange).length : 0;
+    let h = '<div class="cr-diag" style="margin-top:14px;padding:10px;border:2px dashed #C7963E;border-radius:10px;background:#fffaf0;font-size:14px;line-height:1.8"><b>🔎 نتايج مش ظاهرة في التقرير (للمراجعة بس — مش بتتطبع)</b><br>';
+    h += 'إجمالي النتايج المحمّلة: ' + ad(results.length) + '<br>';
+    if(hiddenOld) h += 'اتخفى ' + ad(hiddenOld) + ' اختبار قديم لطلاب اتختبروا تاني (علامة «آخر اختبار لكل طالب بس»).<br>';
+    if(!bad.length) h += '✅ مفيش نتايج مستبعدة لسبب تاني.';
+    else h += '<b>' + ad(bad.length) + ' مستبعدة:</b><br>' + bad.slice(0, 60).map(x => '• ' + x).join('<br>') + (bad.length > 60 ? '<br>…' : '');
+    return h + '</div>';
+  }
+  function textReport(o){
+    const gs = compute(o); if(!gs.length) return '';
+    let t = '*مركز الأمين الثقافي التربوي*\n*تقرير إجمالي بنتائج الفصول*\n' + ad(new Date().toLocaleDateString('en-GB')) + '\n';
+    const kinds = {}; gs.forEach(g => { (kinds[g.name] = kinds[g.name] || new Set()).add(isS(g.rows[0]) ? 's' : 'j'); });
+    const AB = absentMap(gs, o), abShown = {};
+    gs.forEach(g => {
+      let ok = 0; g.rows.forEach(r => { if(passOf(r)) ok++; });
+      const ab = (AB[g.name] && !abShown[g.name]) ? (abShown[g.name] = AB[g.name]) : null;
+      t += '\n*الفصل: ' + g.name + (kinds[g.name].size > 1 ? (isS(g.rows[0]) ? ' — اختبار على سورة' : ' — اختبار على جزء') : '') + '* (ناجح ' + ad(ok) + ' — راسب ' + ad(g.rows.length - ok) + (ab ? ' — غايب ' + ad(ab.absent.length) : '') + ')\n';
+      g.rows.forEach((r, i) => { const n = Number(r.grade); t += ad(i + 1) + '. ' + r.student + ' — ' + (isNaN(n) ? r.grade : ad(n) + '/' + ad(isS(r) ? 10 : 100)) + ' — ' + (passOf(r) ? (fem(r) ? 'ناجحة' : 'ناجح') : (fem(r) ? 'راسبة' : 'راسب')) + '\n'; });
+      if(ab && ab.absent.length) t += '*الغايبين (' + ad(ab.absent.length) + '):* ' + ab.absent.map(x => x.name + (x.days ? ' (غاب ' + dayW(x.days) + ')' : '')).join('، ') + '\n';
+    });
+    return t;
+  }
+
+  function openReport(){
+    const old = $('clsRepOv'); if(old) old.remove();
+    const names = [...new Set(results.filter(valid).map(r => String(r.className || '').trim() || 'بدون فصل'))].sort((a, b) => a.localeCompare(b, 'ar'));
+    const brNames = [...new Set(results.filter(valid).map(r => String(r.branch || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar'));
+    // الأسابيع (السبت → الخميس)
+    const now = new Date(), todayS = isoD(now), start0 = new Date(now); start0.setDate(now.getDate() - ((now.getDay() + 1) % 7));
+    const weeks = [];
+    for(let k = 0; k < 8; k++){
+      const s = new Date(start0); s.setDate(s.getDate() - 7 * k);
+      const e = new Date(s); e.setDate(e.getDate() + 5);
+      const from = isoD(s), to = (k === 0 && isoD(e) > todayS) ? todayS : isoD(e);
+      const cn = new Set(results.filter(valid).filter(r => dOf(r) >= from && dOf(r) <= to).map(r => r.className || 'بدون فصل')).size;
+      const eD = new Date(to + 'T12:00:00');
+      weeks.push({from, to, label: ad(p2(s.getDate()) + '/' + p2(s.getMonth() + 1)) + ' إلى ' + ad(p2(eD.getDate()) + '/' + p2(eD.getMonth() + 1)) + ' (' + ad(cn) + ' فصل' + (k === 0 ? ' — الأسبوع ده' : '') + ')'});
+    }
+    const ov = document.createElement('div'); ov.id = 'clsRepOv';
+    ov.innerHTML = '<div class="cr-box"><div class="cr-ctl">' +
+      '<label>الفرع<select id="crBr"><option value="">كل الفروع</option>' + brNames.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('') + '</select></label>' +
+      '<label>الفصل<select id="crCls"><option value="">كل الفصول</option>' + names.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('') + '</select></label>' +
+      '<label>الأسبوع<select id="crWeekSel"><option value="">كل الفترات</option>' + weeks.map((w, i) => '<option value="' + i + '">' + w.label + '</option>').join('') + '</select></label>' +
+      '<label>أيام فيها اختبارات<select id="crDaySel"><option value="">كل الأيام</option></select></label><label>أو اختاري تاريخ<input type="date" id="crDay"></label><input type="hidden" id="crFrom"><input type="hidden" id="crTo">' +
+      '<button type="button" id="crAll" style="background:#C7963E;color:#fff">كل الأيام</button>' +
+      '<label class="ck"><input type="checkbox" id="crLatest" checked> آخر اختبار لكل طالب بس</label>' +
+      '<label class="ck"><input type="checkbox" id="crPages"> كل فصل في صفحة</label>' +
+      '<label class="ck"><input type="checkbox" id="crSurah" checked> يشمل اختبارات «اختبار على سورة»</label>' +
+      '<div class="cr-acts">' +
+      '<button type="button" id="crPrint" style="background:#0F2440;color:#fff">🖨️ طباعة</button>' +
+      '<button type="button" id="crPrintL" style="background:#0F2440;color:#fff">🖨️ طباعة عرضي</button>' +
+      '<button type="button" id="crPdf" style="background:#B02A2A;color:#fff">📄 حفظ PDF</button>' +
+      '<button type="button" id="crWa" style="background:#1a9d4b;color:#fff">📲 واتساب PDF</button>' +
+      '<button type="button" id="crImg" style="background:#1d4f8a;color:#fff">🖼️ صورة</button>' +
+      '<button type="button" id="crWaTxt" style="background:#1a9d4b;color:#fff">💬 واتساب نص</button>' +
+      '</div><div id="crMsg" style="width:100%;font-weight:700;color:#8A6A20"></div>' +
+      '<button type="button" id="crClose" style="background:#eee;color:#0F2440">إغلاق</button></div>' +
+      '<div id="crBody"></div></div>';
+    document.body.appendChild(ov);
+    document.documentElement.classList.add('cr-open');
+    const g = id => $(id), msg = t => { g('crMsg').textContent = t || ''; };
+    let auto = true;
+    const fillRange = () => { g('crDay').value = ''; if(g('crDaySel')) g('crDaySel').value = ''; const ds = results.filter(valid).map(dOf).filter(d => /^\d{4}-\d{2}-\d{2}$/.test(d)).sort(); g('crFrom').value = ds.length ? ds[0] : ''; g('crTo').value = (ds.length && ds[ds.length - 1] > todayS) ? ds[ds.length - 1] : todayS; };
+    const opts = () => ({br: g('crBr').value, cls: g('crCls').value, from: auto ? '' : g('crFrom').value, to: auto ? '' : g('crTo').value, latest: g('crLatest').checked, pages: g('crPages').checked, surah: g('crSurah').checked});
+    function fit(){
+      const bd = g('crBody'); if(!bd) return;
+      const box = bd.parentNode, cs = getComputedStyle(box), avail = box.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight);
+      bd.style.zoom = '1'; bd.style.width = '400px';
+      let w = 400; bd.querySelectorAll('table').forEach(tb => { if(tb.offsetWidth > w) w = tb.offsetWidth; });
+      bd.style.width = w + 'px';
+      const z = Math.min(1, avail / w);
+      bd.style.zoom = z > 0 ? String(z) : '1';
+    }
+    function redraw(){ g('crBody').innerHTML = bodyHtml(opts()) + (location.hash === '#diag' ? diagHtml(opts()) : ''); fit(); }
+    const onResize = () => fit(); window.addEventListener('resize', onResize);
+    function close(){ window.__crRedraw = null; window.removeEventListener('resize', onResize); ov.remove(); document.documentElement.classList.remove('cr-open'); }
+    g('crClose').onclick = close;
+    g('crWeekSel').addEventListener('change', () => {
+      const v = g('crWeekSel').value; g('crDaySel').value = '';
+      if(v === ''){ auto = true; fillRange(); }
+      else { auto = false; g('crDay').value = ''; g('crFrom').value = weeks[+v].from; g('crTo').value = weeks[+v].to; }
+      redraw();
+    });
+    const fillDays = () => {
+      const cnt = {}; results.filter(valid).forEach(r => { const d = dOf(r); if(/^\d{4}-\d{2}-\d{2}$/.test(d)) (cnt[d] = cnt[d] || new Set()).add(r.className || 'بدون فصل'); });
+      const cur = g('crDaySel').value, ds = Object.keys(cnt).sort().reverse();
+      g('crDaySel').innerHTML = '<option value="">كل الأيام</option>' + ds.map(d => '<option value="' + d + '">' + ad(d.slice(8) + '/' + d.slice(5, 7)) + ' (' + ad(cnt[d].size) + ' فصل)</option>').join('');
+      g('crDaySel').value = ds.indexOf(cur) >= 0 ? cur : '';
+    };
+    fillDays();
+    g('crDaySel').addEventListener('change', () => {
+      const d = g('crDaySel').value; g('crWeekSel').value = '';
+      if(!d){ auto = true; fillRange(); }
+      else { auto = false; g('crDay').value = d; g('crFrom').value = d; g('crTo').value = d; }
+      redraw();
+    });
+    ['change', 'input'].forEach(ev => g('crDay').addEventListener(ev, () => { const d = g('crDay').value; if(!d) return; auto = false; g('crFrom').value = d; g('crTo').value = d; g('crWeekSel').value = ''; g('crDaySel').value = [...g('crDaySel').options].some(o => o.value === d) ? d : ''; redraw(); }));
+    g('crAll').onclick = () => { g('crDaySel').value = ''; g('crWeekSel').value = ''; auto = true; fillRange(); redraw(); };
+    ['crCls', 'crLatest', 'crPages', 'crSurah'].forEach(id => g(id).addEventListener('change', redraw));
+    g('crBr').addEventListener('change', () => { g('crCls').value = ''; redraw(); });
+    // افتراضي: الأسبوع الحالي
+    g('crWeekSel').value = ''; fillRange();
+    redraw();
+    window.__crRedraw = function(){
+      const sel = g('crCls'); if(!sel) return;
+      const v = sel.value, nn = [...new Set(results.filter(valid).map(r => String(r.className || '').trim() || 'بدون فصل'))].sort((a, b) => a.localeCompare(b, 'ar'));
+      sel.innerHTML = '<option value="">كل الفصول</option>' + nn.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('');
+      sel.value = nn.indexOf(v) >= 0 ? v : '';
+      const bsel = g('crBr'), bv = bsel.value, bb = [...new Set(results.filter(valid).map(r => String(r.branch || '').trim()).filter(Boolean))].sort((a, b) => a.localeCompare(b, 'ar'));
+      bsel.innerHTML = '<option value="">كل الفروع</option>' + bb.map(n => '<option value="' + esc(n) + '">' + esc(n) + '</option>').join('');
+      bsel.value = bb.indexOf(bv) >= 0 ? bv : '';
+      fillDays(); if(auto) fillRange();
+      redraw();
+    };
+
+    function printAs(orient){
+      const st = document.createElement('style'); st.id = 'crPageSt'; st.textContent = '@page{size:A4 ' + orient + ';margin:10mm}'; document.head.appendChild(st);
+      const done = () => { const x = $('crPageSt'); if(x) x.remove(); window.removeEventListener('afterprint', done); };
+      window.addEventListener('afterprint', done); window.print(); setTimeout(done, 60000);
+    }
+    g('crPrint').onclick = () => printAs('portrait');
+    g('crPrintL').onclick = () => printAs('landscape');
+
+    /* ===== صفحات A4 كصور (الفصل ما يتقطعش نصين لو دخل في صفحة) ===== */
+    async function pagesCanvases(){
+      if(typeof html2canvas === 'undefined') throw new Error('html2canvas');
+      let x = $('crExp'); if(x) x.remove();
+      x = document.createElement('div'); x.id = 'crExp'; x.innerHTML = bodyHtml(opts()); document.body.appendChild(x);
+      try{
+        if(document.fonts && document.fonts.ready) await document.fonts.ready;
+        const SC = 2, PW = 794, PH = 1123, PAD = 18, usable = PH - PAD * 2, list = [];
+        for(const b of Array.from(x.children)){
+          const c = await html2canvas(b, {scale: SC, backgroundColor: '#ffffff', logging: false, scrollX: 0, scrollY: 0, windowWidth: 900});
+          list.push({head: b.classList.contains('cr-head'), c, h: c.height / SC});
+        }
+        const pages = []; let cur = null, used = 0;
+        const np = () => { cur = []; used = 0; pages.push(cur); }; np();
+        list.forEach(it => {
+          if(!it.head && g('crPages').checked && cur.some(q => !q.head)) np();
+          if(used + it.h > usable && cur.length) np();
+          cur.push(it); used += it.h + 12;
+        });
+        return pages.map(items => {
+          const c = document.createElement('canvas'); c.width = PW * SC; c.height = PH * SC;
+          const cx = c.getContext('2d'); cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height);
+          let y = PAD;
+          items.forEach(it => {
+            const w = it.c.width / SC; let k = 1; if(w > PW - PAD * 2) k = (PW - PAD * 2) / w;
+            const dw = w * k, dh = it.h * k;
+            cx.drawImage(it.c, (PW - dw) / 2 * SC, y * SC, dw * SC, dh * SC); y += dh + 12;
+          });
+          return c;
+        });
+      } finally { x.remove(); }
+    }
+    const stem = () => 'تقرير-الفصول-' + isoD(new Date());
+    const toBlob = (c, type, q) => new Promise(r => c.toBlob(r, type, q));
+    async function makePdf(){
+      const cs = await pagesCanvases();
+      if(!(window.jspdf && window.jspdf.jsPDF)) throw new Error('jspdf');
+      const pdf = new window.jspdf.jsPDF({unit: 'mm', format: 'a4', orientation: 'p'});
+      cs.forEach((c, i) => { if(i) pdf.addPage(); pdf.addImage(c.toDataURL('image/jpeg', 0.92), 'JPEG', 0, 0, 210, 297); });
+      return pdf.output('blob');
+    }
+    function saveFiles(files){
+      files.forEach(f => { const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; document.body.appendChild(a); a.click(); setTimeout(() => { a.remove(); URL.revokeObjectURL(a.href); }, 1500); });
+    }
+    async function shareFiles(files, title){
+      if(navigator.canShare && navigator.canShare({files})){
+        try{ await navigator.share({files, title}); return; }catch(e){ if(e && e.name === 'AbortError') return; }
+      }
+      saveFiles(files); msg('اتحفظ الملف في الجهاز — ابعتيه من واتساب من الملفات/المعرض.');
+    }
+    async function run(btn, fn){
+      if(!compute(opts()).length){ msg('مفيش اختبارات تطابق الاختيار ده.'); return; }
+      const old = btn.textContent; btn.disabled = true; btn.textContent = '⏳ ...'; msg('');
+      try{ await fn(); }
+      catch(e){ msg(e && /jspdf/.test(e.message) ? 'مكتبة PDF مش متحمّلة — اتأكدي من النت وجرّبي تاني.' : 'حصلت مشكلة في التجهيز، جرّبي تاني.'); }
+      btn.disabled = false; btn.textContent = old;
+    }
+    g('crPdf').onclick = () => run(g('crPdf'), async () => { saveFiles([new File([await makePdf()], stem() + '.pdf', {type: 'application/pdf'})]); });
+    g('crWa').onclick = () => run(g('crWa'), async () => { await shareFiles([new File([await makePdf()], stem() + '.pdf', {type: 'application/pdf'})], 'تقرير الفصول'); });
+    g('crImg').onclick = () => run(g('crImg'), async () => {
+      const cs = await pagesCanvases(), files = [];
+      for(let i = 0; i < cs.length; i++) files.push(new File([await toBlob(cs[i], 'image/png')], stem() + (cs.length > 1 ? '-' + (i + 1) : '') + '.png', {type: 'image/png'}));
+      await shareFiles(files, 'تقرير الفصول');
+    });
+    g('crWaTxt').onclick = () => {
+      const t = textReport(opts()); if(!t){ msg('مفيش اختبارات تطابق الاختيار ده.'); return; }
+      const w = window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
+      if(!w){ try{ navigator.clipboard.writeText(t); msg('اتنسخ النص، الصقيه في واتساب ✓'); }catch(_){ prompt('انسخي النص:', t); } }
+    };
+  }
+
+  /* ===== 👩‍🏫 المحفظات: فصول كل محفظة في الشهر الحالي (ناجح/راسب بدون أسماء الطلاب) ===== */
+  const MONTHS = ['يناير','فبراير','مارس','أبريل','مايو','يونيو','يوليو','أغسطس','سبتمبر','أكتوبر','نوفمبر','ديسمبر'];
+  const tcCss = document.createElement('style');
+  tcCss.textContent = '#tcOv{position:fixed;inset:0;z-index:2147483646;background:#1b2d4a;overflow:auto;padding:10px;direction:rtl;font-family:Cairo,Tahoma,Arial,sans-serif}#tcOv .tc-box{background:#fff;color:#111;max-width:820px;margin:0 auto;border-radius:14px;padding:14px;box-sizing:border-box}#tcOv h2{margin:0 0 4px;font-size:20px;color:#0F2440}#tcOv .tc-sub{color:#666;font-size:13px;margin-bottom:10px}#tcOv .tc-t{display:flex;justify-content:space-between;align-items:center;gap:8px;width:100%;font:inherit;font-weight:800;font-size:16px;padding:12px 14px;margin:0 0 8px;border:1px solid #C7963E;border-radius:12px;background:#f6f1e3;color:#0F2440;cursor:pointer}#tcOv .tc-t small{font-weight:600;color:#666}#tcOv .tc-c{display:flex;justify-content:space-between;gap:8px;align-items:center;padding:10px 12px;margin-bottom:8px;border:1px solid #ddd;border-radius:10px;font-size:15px}#tcOv .tc-c.bad{border-color:#e0a3a3;background:#fdf2f2}#tcOv .tc-ok{color:#1a7a3c;font-weight:800}#tcOv .tc-no{color:#b02a2a;font-weight:800}#tcOv .tc-all{background:#e8f6ec;border:1px solid #9bd0ac;color:#1a7a3c;font-weight:800;border-radius:10px;padding:12px;text-align:center;margin-bottom:10px}#tcOv .tc-sum{font-weight:700;margin-bottom:10px}#tcOv .tc-b{font:inherit;font-weight:800;border:0;border-radius:10px;padding:9px 16px;cursor:pointer;background:#eee;color:#111;margin:6px 0 0 6px}';
+  document.head.appendChild(tcCss);
+  function tcData(){
+    const now = new Date(), ym = now.getFullYear() + '-' + p2(now.getMonth() + 1);
+    const list = latestPerStudent(results.filter(valid).filter(r => dOf(r).slice(0, 7) === ym));
+    const T = {};
+    list.forEach(r => {
+      const t = tKey(r);
+      const c = String(r.className || '').trim() || 'بدون فصل';
+      const tt = T[t] = T[t] || {}, cc = tt[c] = tt[c] || {pass: 0, fail: 0};
+      if(passOf(r)) cc.pass++; else cc.fail++;
+    });
+    return {month: MONTHS[now.getMonth()] + ' ' + ad(now.getFullYear()), T};
+  }
+  function openTeachers(){
+    const old = document.getElementById('tcOv'); if(old) old.remove();
+    let D, names, cur = null;
+    const load = () => { D = tcData(); names = Object.keys(D.T).sort((a, b) => a.localeCompare(b, 'ar')); };
+    load();
+    const ov = document.createElement('div'); ov.id = 'tcOv';
+    const box = document.createElement('div'); box.className = 'tc-box'; ov.appendChild(box);
+    const close = () => ov.remove();
+    function showList(){
+      cur = null;
+      box.innerHTML = '<h2>👩‍🏫 المحفظات — شهر ' + esc(D.month) + '</h2><div class="tc-sub">الفصول اللي اتختبرت الشهر ده</div>' +
+        (names.length ? names.map((n, i) => { const cs = Object.keys(D.T[n]), nf = cs.filter(c => D.T[n][c].fail).length; return '<button type="button" class="tc-t" data-i="' + i + '"><span>' + esc(n) + '</span><small>' + ad(cs.length) + ' فصل' + (nf ? ' · ' + ad(nf) + ' راسب' : ' · كلها ناجحة') + '</small></button>'; }).join('') : '<div style="text-align:center;padding:20px;color:#777">مفيش فصول اتختبرت الشهر ده لسه.</div>') +
+        '<button type="button" class="tc-b" id="tcClose">إغلاق</button>';
+      box.querySelectorAll('.tc-t').forEach(b => { b.onclick = () => showTeacher(names[+b.dataset.i]); });
+      box.querySelector('#tcClose').onclick = close;
+    }
+    function showTeacher(n){
+      cur = n;
+      const cs = Object.keys(D.T[n]).sort((a, b) => a.localeCompare(b, 'ar')), nf = cs.filter(c => D.T[n][c].fail).length;
+      box.innerHTML = '<h2>' + esc(n) + ' — شهر ' + esc(D.month) + '</h2><div class="tc-sub">الفصول اللي اتختبرت الشهر ده</div>' +
+        (nf ? '<div class="tc-sum">عدد الفصول: ' + ad(cs.length) + ' — الراسب منها: ' + ad(nf) + '</div>' : '<div class="tc-all">✅ كل الفصول ناجحة (' + ad(cs.length) + ' فصل)</div>') +
+        cs.map(c => { const x = D.T[n][c]; return '<div class="tc-c' + (x.fail ? ' bad' : '') + '"><b>' + esc(c) + '</b><span class="' + (x.fail ? 'tc-no' : 'tc-ok') + '">' + (x.fail ? 'راسب' : 'ناجح') + '</span></div>'; }).join('') +
+        '<button type="button" class="tc-b" id="tcBack">↩ كل المحفظات</button><button type="button" class="tc-b" id="tcClose">إغلاق</button>';
+      box.querySelector('#tcBack').onclick = showList;
+      box.querySelector('#tcClose').onclick = close;
+    }
+    window.__tcRefresh = () => { if(!document.getElementById('tcOv')) return; load(); if(cur && D.T[cur]) showTeacher(cur); else showList(); };
+    showList();
+    document.body.appendChild(ov);
+  }
+  $('tcBtn').addEventListener('click', openTeachers);
+
+  /* ===== 📚 تقارير للشيخ: ملخص الأسبوع / التقرير الأسبوعي / تقرير شهري / تطور الطالب (من نتايج الاختبارات اللي وصلت) ===== */
+  const trCss = document.createElement('style');
+  trCss.textContent =
+    '#trOv{position:fixed;inset:0;z-index:2147483645;background:#1b2d4a;overflow:auto;padding:10px;direction:rtl;font-family:Cairo,Tahoma,Arial,sans-serif;color:#111}' +
+    '#trOv .tr-box{background:#fff;max-width:860px;margin:0 auto;border-radius:14px;padding:12px;box-sizing:border-box}' +
+    '#trOv .tr-tabs{display:flex;gap:6px;overflow-x:auto;padding-bottom:6px;margin-bottom:8px}' +
+    '#trOv .tr-tabs button,#trOv .tr-b{font:inherit;font-weight:800;font-size:14px;border:1px solid #C7963E;border-radius:10px;padding:8px 12px;background:#f6f1e3;color:#0F2440;cursor:pointer;white-space:nowrap}' +
+    '#trOv .tr-tabs button.on,#trOv .tr-b.p{background:#0F2440;color:#F4EFDC;border-color:#0F2440}' +
+    '#trOv .tr-ctl{display:flex;flex-wrap:wrap;gap:8px;align-items:flex-end;background:#f6f1e3;border:1px solid #C7963E;border-radius:10px;padding:8px;margin-bottom:10px;font-size:13px;font-weight:700}' +
+    '#trOv .tr-ctl label{display:flex;flex-direction:column;gap:3px}' +
+    '#trOv .tr-ctl select,#trOv .tr-ctl input{font:inherit;padding:6px;border:1px solid #aaa;border-radius:8px;background:#fff;min-height:36px;min-width:130px}' +
+    '#trOv h2{margin:0;font-size:20px;color:#0F2440}#trOv h3{margin:12px 0 6px;font-size:16px;color:#0F2440}' +
+    '#trOv .tr-hero{text-align:center;margin-bottom:10px}#trOv .tr-hero .s{color:#8A6A20;font-weight:700;font-size:13px}' +
+    '#trOv .tr-kp{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin:8px 0}#trOv .tr-kp div{background:#0F2440;color:#E8C46B;border-radius:12px;padding:6px 14px;text-align:center;font-size:12px;min-width:80px}#trOv .tr-kp b{display:block;font-size:20px;color:#fff}#trOv .tr-kp .r{background:#b02a2a}#trOv .tr-kp .g{background:#1a7a3c}' +
+    '#trOv .tr-t{border:1px solid #C7963E;border-radius:12px;margin-bottom:12px;overflow:hidden}#trOv .tr-th{background:#f6f1e3;padding:8px 12px;font-weight:800;color:#0F2440}#trOv .tr-th.bad{background:#fdf2f2}' +
+    '#trOv .tr-c{padding:8px 12px;border-top:1px solid #eee}#trOv .tr-cn{display:flex;justify-content:space-between;gap:8px;align-items:center;font-weight:800}#trOv .tr-sm{font-size:12.5px;color:#666;line-height:1.8;font-weight:600}' +
+    '#trOv .bg{border-radius:999px;padding:2px 10px;font-size:12px;font-weight:800;white-space:nowrap}#trOv .bg.ok{background:#e8f6ec;color:#1a7a3c}#trOv .bg.bad{background:#fdecec;color:#b02a2a}' +
+    '#trOv .chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}#trOv .chip{border-radius:8px;padding:4px 8px;font-size:13px;background:#eef6f0;border:1px solid #cfe5d6}#trOv .chip.f{background:#fdf2f2;border-color:#e8b9b9;color:#b02a2a;font-weight:800}' +
+    '#trOv .tr-f{padding:8px 12px;font-weight:800;font-size:13.5px}#trOv .tr-f.ok{background:#e8f6ec;color:#1a7a3c}#trOv .tr-f.bad{background:#fff3d6;color:#7a4b00}' +
+    '#trOv .tr-row{display:flex;justify-content:space-between;gap:8px;padding:7px 4px;border-bottom:1px solid #eee;font-size:14px}' +
+    '#trOv table{width:100%;border-collapse:collapse;font-size:13.5px}#trOv th{background:#0F2440;color:#fff;padding:6px}#trOv td{padding:6px;border-bottom:1px solid #E5D9B8;text-align:center}#trOv td.n{text-align:right;font-weight:800}' +
+    '#trOv .tr-mut{text-align:center;color:#777;padding:20px;font-weight:700}#trOv .tr-act{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}' +
+    '@media print{html.tr-open body>*:not(#trOv){display:none!important}html.tr-open body>#trOv{display:block!important}#trOv{position:static!important;background:#fff!important;padding:0!important;overflow:visible!important}#trOv .tr-noprint{display:none!important}}';
+  document.head.appendChild(trCss);
+
+  const TR = {tab: 'wsum', from: '', to: '', br: '', mon: '', cls: '', stu: '', text: ''};
+  const AR_ = (a, b) => String(a).localeCompare(String(b), 'ar');
+  const pctOf = r => { const n = Number(r.grade); return isNaN(n) ? null : (isS(r) ? n * 10 : n); };
+  const tName = r => String(r.supervisorName || '').trim().replace(/^\s*أ\s*[.\/]\s*/, '') || 'غير محددة';
+  const cName = r => String(r.className || '').trim() || 'بدون فصل';
+  const brOf = r => String(r.branch || '').trim();
+  /* اسم المحفظة: لو نفس الاسم في أكتر من فرع، بيتكتب جنبه اسم الفرع عشان يتفرقوا */
+  const tKey = r => { const n = tName(r), b = brOf(r); if(!b) return n; const bs = new Set(results.filter(valid).filter(x => tName(x) === n).map(brOf).filter(Boolean)); return bs.size > 1 ? n + ' — ' + (/^فرع\s/.test(b) ? b : 'فرع ' + b) : n; };
+  const r1 = n => Math.round(n * 10) / 10;
+  const avgOf = a => { const v = a.map(pctOf).filter(x => x !== null); return v.length ? v.reduce((x, y) => x + y, 0) / v.length : null; };
+  const grTxt = (p, sur) => p === null ? '—' : (sur ? ad(Math.round(p / 10)) + '/١٠' : ad(Math.round(p)) + '/١٠٠');
+  const dLbl = d => ad(d.slice(8) + '/' + d.slice(5, 7) + '/' + d.slice(0, 4));
+  const mLbl = m => MONTHS[Number(m.slice(5)) - 1] + ' ' + ad(m.slice(0, 4));
+  const prevM = m => { const y = Number(m.slice(0, 4)), mo = Number(m.slice(5)); const d = new Date(y, mo - 2, 1); return d.getFullYear() + '-' + p2(d.getMonth() + 1); };
+  const kindTxt = sur => sur ? ' — اختبار على سورة' : '';
+  const hero = (title, sub) => '<div class="tr-hero"><div class="s">✦ مركز الأمين الثقافي التربوي ✦</div><h2>' + title + '</h2><div class="s">' + esc(sub) + '</div></div>';
+  const kp = a => '<div class="tr-kp">' + a.map(x => '<div class="' + (x[2] || '') + '"><b>' + x[0] + '</b>' + x[1] + '</div>').join('') + '</div>';
+  const HEADT = (title, sub) => ['✦ مركز الأمين الثقافي التربوي ✦', title, sub, ''];
+
+  function trRange(){
+    return results.filter(valid).filter(r => { const d = dOf(r); return (!TR.from || d >= TR.from) && (!TR.to || d <= TR.to) && (!TR.br || brOf(r) === TR.br); });
+  }
+  function trPer(){ return TR.from === TR.to ? dLbl(TR.from) : 'من ' + dLbl(TR.from) + ' إلى ' + dLbl(TR.to); }
+  function trGroup(rows){
+    const C = {};
+    rows.forEach(r => {
+      const k = cName(r) + '\u0001' + (isS(r) ? 's' : 'j');
+      const c = C[k] = C[k] || {name: cName(r), sur: isS(r), tc: tKey(r), br: brOf(r), st: {}, tests: 0, dates: {}};
+      (c.st[r.student] = c.st[r.student] || []).push(r); c.tests++; c.dates[dOf(r)] = 1;
+    });
+    const T = {};
+    Object.keys(C).forEach(k => {
+      const c = C[k];
+      c.list = Object.keys(c.st).map(n => { const a = c.st[n]; return {n: n, a: a, f: a.some(x => !passOf(x)), p: avgOf(a)}; }).sort((x, y) => (y.p === null ? -1 : y.p) - (x.p === null ? -1 : x.p));
+      c.fails = c.list.filter(x => x.f);
+      (T[c.tc] = T[c.tc] || []).push(c);
+    });
+    Object.keys(T).forEach(n => T[n].sort((a, b) => AR_(a.name, b.name) || (a.sur ? 1 : 0) - (b.sur ? 1 : 0)));
+    return T;
+  }
+
+  /* 🧾 ملخص الأسبوع للشيخ */
+  function trWsum(){
+    const T = trGroup(trRange()), names = Object.keys(T), per = trPer();
+    if(!names.length) return {h: hero('🧾 ملخص الأسبوع للشيخ', per) + '<div class="tr-mut">مفيش اختبارات في الفترة دي. غيّري التاريخ فوق.</div>', t: ''};
+    let nC = 0, nS = 0, nF = 0;
+    names.forEach(n => T[n].forEach(c => { nC++; nS += c.list.length; nF += c.fails.length; }));
+    names.sort((a, b) => (T[b].some(c => c.fails.length) - T[a].some(c => c.fails.length)) || AR_(a, b));
+    let h = hero('🧾 ملخص الأسبوع للشيخ', per) + kp([[ad(nC), 'فصل'], [ad(nS), 'طالب'], [ad(nF), 'راسب', nF ? 'r' : 'g']]);
+    const t = HEADT('🧾 ملخص الأسبوع للشيخ', per); t.push('الفصول: ' + ad(nC) + ' • الطلاب: ' + ad(nS) + ' • الراسبون: ' + ad(nF));
+    names.forEach(n => {
+      const cs = T[n], bad = cs.reduce((x, c) => x + c.fails.length, 0);
+      h += '<div class="tr-t"><div class="tr-th' + (bad ? ' bad' : '') + '">👩‍🏫 المحفظة: ' + esc(n) + ' <span class="tr-sm">(' + ad(cs.length) + ' فصل)</span></div>';
+      t.push('', '━━━━━━━━━━', '👩‍🏫 المحفظة: ' + n);
+      cs.forEach(c => {
+        const badge = c.fails.length ? '⚠️ ' + ad(c.fails.length) + ' راسب من ' + ad(c.list.length) : '✅ كل الطلاب ناجحين';
+        const sub = [c.br ? 'فرع ' + c.br : '', '🗓️ ' + Object.keys(c.dates).sort().map(d => ad(d.slice(8) + '/' + d.slice(5, 7))).join('، '), ad(c.list.length) + ' طالب'].filter(Boolean).join(' • ');
+        h += '<div class="tr-c"><div class="tr-cn"><span>📘 ' + esc(c.name) + esc(kindTxt(c.sur)) + '</span><span class="bg ' + (c.fails.length ? 'bad' : 'ok') + '">' + esc(badge) + '</span></div><div class="tr-sm">' + esc(sub) + '</div><div class="chips">' +
+          c.list.map(x => '<span class="chip' + (x.f ? ' f' : '') + '">' + esc(x.n) + (x.a.length > 1 ? ' (×' + ad(x.a.length) + ')' : '') + ' — ' + grTxt(x.p, c.sur) + (x.f ? ' ✗' : '') + '</span>').join('') + '</div></div>';
+        t.push('', '📘 ' + c.name + kindTxt(c.sur) + ' — ' + badge, sub);
+        c.list.forEach(x => t.push('   ' + (x.f ? '❌' : '•') + ' ' + x.n + ' — ' + grTxt(x.p, c.sur) + (x.f ? ' (راسب)' : '')));
+        if(c.fails.length){ h += '<div class="tr-sm" style="padding:6px 0 0;color:#b02a2a">⚠️ مشاكل الفصل: ' + esc(c.fails.map(x => x.n + ' (' + grTxt(x.p, c.sur) + ')').join('، ')) + '</div>'; t.push('   ⚠️ مشاكل الفصل: ' + c.fails.map(x => x.n).join('، ')); }
+      });
+      h += '<div class="tr-f ' + (bad ? 'bad' : 'ok') + '">' + (bad ? '⚠️ تنبيه للمحفظة: ' + ad(bad) + ' طالب محتاجين مراجعة' : '🎉 مبروك، كل فصول المحفظة ناجحة') + '</div></div>';
+      t.push(bad ? '⚠️ تنبيه للمحفظة: ' + ad(bad) + ' طالب محتاجين مراجعة' : '🎉 كل فصول المحفظة ناجحة');
+    });
+    return {h: h, t: t.join('\n')};
+  }
+
+  /* 📅 التقرير الأسبوعي */
+  function trWeek(){
+    const T = trGroup(trRange()), names = Object.keys(T), per = trPer();
+    if(!names.length) return {h: hero('📅 التقرير الأسبوعي', per) + '<div class="tr-mut">مفيش اختبارات في الفترة دي. غيّري التاريخ فوق.</div>', t: ''};
+    names.sort(AR_);
+    let nC = 0, nT = 0; names.forEach(n => T[n].forEach(c => { nC++; nT += c.tests; }));
+    let h = hero('📅 التقرير الأسبوعي', per) + kp([[ad(names.length), 'محفظة اختبرت'], [ad(nC), 'فصل'], [ad(nT), 'اختبار']]);
+    const t = HEADT('📅 التقرير الأسبوعي', per); t.push('المحفظات: ' + ad(names.length) + ' | الفصول: ' + ad(nC) + ' | الاختبارات: ' + ad(nT));
+    names.forEach(n => {
+      const cs = T[n].slice().sort((a, b) => (b.tests - a.tests) || AR_(a.name, b.name)), tt = cs.reduce((x, c) => x + c.tests, 0);
+      h += '<div class="tr-t"><div class="tr-th">👩‍🏫 المحفظة: ' + esc(n) + ' <span class="tr-sm">' + ad(cs.length) + ' فصل • ' + ad(tt) + ' اختبار</span></div>';
+      t.push('', '━━━━━━━━━━', '👩‍🏫 المحفظة: ' + n, 'فصولها: ' + ad(cs.length) + ' — إجمالي الاختبارات: ' + ad(tt));
+      cs.forEach((c, i) => {
+        const av = avgOf([].concat.apply([], Object.keys(c.st).map(k => c.st[k])));
+        const dl = Object.keys(c.dates).sort().map(d => ad(d.slice(8) + '/' + d.slice(5, 7))).join(' • ');
+        const sub = ad(c.list.length) + ' طالب' + (av !== null ? ' • المتوسط ' + grTxt(av, c.sur) : '') + (c.br ? ' • فرع ' + c.br : '');
+        h += '<div class="tr-c"><div class="tr-cn"><span>' + ad(i + 1) + '. ' + esc(c.name) + esc(kindTxt(c.sur)) + '</span><span class="bg ok">' + ad(c.tests) + ' اختبار</span></div><div class="tr-sm">' + esc(sub) + '<br>🗓️ ' + esc(dl) + '</div></div>';
+        t.push('   ' + ad(i + 1) + '. ' + c.name + kindTxt(c.sur) + ' — ' + ad(c.tests) + ' اختبار', '      ' + sub, '      🗓️ ' + dl);
+      });
+      h += '<div class="tr-f ok">إجمالي اختبارات ' + esc(n) + ': ' + ad(tt) + ' في ' + ad(cs.length) + ' فصل</div></div>';
+      t.push('   ➕ إجمالي اختبارات ' + n + ': ' + ad(tt) + ' في ' + ad(cs.length) + ' فصل');
+    });
+    return {h: h, t: t.join('\n')};
+  }
+
+  /* 🗓️ تقرير شهري */
+  function trMon(){
+    const all = results.filter(valid).filter(r => !TR.br || brOf(r) === TR.br);
+    const ms = trMonths();
+    if(!TR.mon || ms.indexOf(TR.mon) < 0) TR.mon = ms[0] || '';
+    if(!TR.mon) return {h: hero('🗓️ التقرير الشهري', '') + '<div class="tr-mut">مفيش اختبارات لسه.</div>', t: ''};
+    const pm = prevM(TR.mon), cur = all.filter(r => dOf(r).slice(0, 7) === TR.mon), prv = all.filter(r => dOf(r).slice(0, 7) === pm);
+    const okN = cur.filter(passOf).length, a1 = avgOf(cur), a0 = prv.length ? avgOf(prv) : null;
+    const dl = (x, y) => (x === null || y === null) ? '' : (x - y > 0.05 ? '📈 +' + ad(r1(x - y)) + '٪' : (x - y < -0.05 ? '📉 ' + ad(r1(x - y)) + '٪' : '➖ زي ما هو'));
+    let h = hero('🗓️ التقرير الشهري', mLbl(TR.mon)) + kp([[ad(cur.length), 'اختبار'], [ad(okN), 'ناجح', 'g'], [ad(cur.length - okN), 'راسب', cur.length - okN ? 'r' : 'g'], [a1 === null ? '—' : ad(r1(a1)) + '٪', 'المتوسط']]);
+    const t = HEADT('🗓️ التقرير الشهري — ' + mLbl(TR.mon), ''); t.push('عدد الاختبارات: ' + ad(cur.length) + ' — ناجح ' + ad(okN) + ' — راسب ' + ad(cur.length - okN), 'المتوسط: ' + (a1 === null ? '—' : ad(r1(a1)) + '٪'));
+    if(a0 !== null && a1 !== null){ h += '<div class="tr-sm" style="text-align:center">مقارنة بـ ' + esc(mLbl(pm)) + ' (متوسطه ' + ad(r1(a0)) + '٪): ' + dl(a1, a0) + '</div>'; t.push('مقارنة بـ ' + mLbl(pm) + ': ' + dl(a1, a0)); }
+    else h += '<div class="tr-sm" style="text-align:center">مفيش اختبارات في ' + esc(mLbl(pm)) + ' للمقارنة.</div>';
+    const bc = {}, pc = {};
+    cur.forEach(r => { (bc[cName(r)] = bc[cName(r)] || []).push(r); }); prv.forEach(r => { (pc[cName(r)] = pc[cName(r)] || []).push(r); });
+    h += '<h3>📚 الفصول</h3><div style="overflow-x:auto"><table><tr><th>الفصل</th><th>اختبارات</th><th>ناجح / راسب</th><th>المتوسط</th><th>عن الشهر اللي فات</th></tr>';
+    t.push('', '📚 الفصول:');
+    Object.keys(bc).sort(AR_).forEach(k => {
+      const a = bc[k], o = a.filter(passOf).length, av = avgOf(a), pv = pc[k] ? avgOf(pc[k]) : null;
+      h += '<tr><td class="n">' + esc(k) + '</td><td>' + ad(a.length) + '</td><td>' + ad(o) + ' / ' + ad(a.length - o) + '</td><td>' + (av === null ? '—' : ad(r1(av)) + '٪') + '</td><td>' + (dl(av, pv) || '—') + '</td></tr>';
+      t.push('• ' + k + ': ' + ad(a.length) + ' اختبار، متوسط ' + (av === null ? '—' : ad(r1(av)) + '٪') + ' (' + ad(o) + ' ناجح / ' + ad(a.length - o) + ' راسب) ' + dl(av, pv));
+    });
+    h += '</table></div>';
+    const bs = {}, ps = {};
+    cur.forEach(r => { const k = String(r.student).trim(); (bs[k] = bs[k] || []).push(r); }); prv.forEach(r => { const k = String(r.student).trim(); (ps[k] = ps[k] || []).push(r); });
+    const L = Object.keys(bs).map(k => ({n: k, a: avgOf(bs[k]), p: ps[k] ? avgOf(ps[k]) : null, f: bs[k].some(r => !passOf(r))}));
+    const ranked = L.filter(x => x.a !== null).sort((x, y) => y.a - x.a);
+    h += '<h3>⭐ الأوائل</h3>' + (ranked.slice(0, 3).map((x, i) => '<div class="tr-row"><span>' + ['🥇', '🥈', '🥉'][i] + ' <b>' + esc(x.n) + '</b></span><span>' + ad(r1(x.a)) + '٪</span></div>').join('') || '<div class="tr-sm">—</div>');
+    t.push('', '⭐ الأوائل:'); ranked.slice(0, 3).forEach((x, i) => t.push(['🥇', '🥈', '🥉'][i] + ' ' + x.n + ' — ' + ad(r1(x.a)) + '٪'));
+    const need = L.filter(x => x.f || (x.a !== null && x.a < 90)).sort((x, y) => (x.a || 0) - (y.a || 0));
+    h += '<h3>🔎 يحتاجوا متابعة</h3>' + (need.length ? need.map(x => '<div class="tr-row"><span>• <b>' + esc(x.n) + '</b>' + (x.f ? ' <span class="bg bad">راسب</span>' : '') + '</span><span>' + (x.a === null ? '—' : ad(r1(x.a)) + '٪') + '</span></div>').join('') : '<div class="tr-f ok">مفيش حد ✅</div>');
+    t.push('', '🔎 يحتاجوا متابعة:'); need.forEach(x => t.push('• ' + x.n + ' — ' + (x.a === null ? '—' : ad(r1(x.a)) + '٪') + (x.f ? ' (راسب)' : ''))); if(!need.length) t.push('مفيش حد ✅');
+    const imp = L.filter(x => x.a !== null && x.p !== null).map(x => ({n: x.n, d: x.a - x.p})).sort((x, y) => y.d - x.d);
+    if(imp.length){ h += '<h3>📈 الطلاب عن الشهر اللي فات</h3>' + imp.map(x => '<div class="tr-row"><span>' + esc(x.n) + '</span><span>' + dl(x.d, 0) + '</span></div>').join(''); t.push('', '📈 الطلاب عن الشهر اللي فات:'); imp.forEach(x => t.push('• ' + x.n + ' ' + dl(x.d, 0))); }
+    return {h: h, t: t.join('\n')};
+  }
+  function trMonths(){
+    return [...new Set(results.filter(valid).filter(r => !TR.br || brOf(r) === TR.br).map(r => dOf(r).slice(0, 7)).filter(m => /^\d{4}-\d{2}$/.test(m)))].sort().reverse();
+  }
+
+  /* 📈 تطور الطالب */
+  function trStuLists(){
+    const base = results.filter(valid).filter(r => !TR.br || brOf(r) === TR.br);
+    const cls = [...new Set(base.map(cName))].sort(AR_);
+    if(TR.cls && cls.indexOf(TR.cls) < 0) TR.cls = '';
+    const pool = base.filter(r => !TR.cls || cName(r) === TR.cls);
+    const names = [...new Set(pool.map(r => String(r.student).trim()))].sort(AR_);
+    if(names.indexOf(TR.stu) < 0) TR.stu = names[0] || '';
+    return {cls: cls, names: names, pool: pool};
+  }
+  function trStu(){
+    const L = trStuLists();
+    if(!TR.stu) return {h: hero('📈 تطور الطالب', '') + '<div class="tr-mut">مفيش طلاب لسه.</div>', t: ''};
+    const rows = L.pool.filter(r => String(r.student).trim() === TR.stu && pctOf(r) !== null).sort((a, b) => (dOf(a) + String(a.ts || 0).padStart(15, '0')).localeCompare(dOf(b) + String(b.ts || 0).padStart(15, '0')));
+    let h = hero('📈 تطور ' + TR.stu, TR.cls || '');
+    const t = HEADT('📈 تطور الطالب — ' + TR.stu, TR.cls || '');
+    if(!rows.length) return {h: h + '<div class="tr-mut">مفيش درجات للطالب ده.</div>', t: ''};
+    const ps = rows.map(pctOf), W = 340, H = 190, pl = 34, pr = 10, pt = 14, pb = 30, lo = Math.max(0, Math.floor((Math.min.apply(null, ps.concat([88])) - 5) / 5) * 5), hi = 100;
+    const X = i => rows.length === 1 ? (pl + (W - pl - pr) / 2) : pl + i * (W - pl - pr) / (rows.length - 1), Y = v => pt + (hi - v) / (hi - lo) * (H - pt - pb);
+    let svg = '<svg viewBox="0 0 ' + W + ' ' + H + '" style="width:100%;max-width:520px;direction:ltr;background:#FFFEF8;border:1px solid #EAE1C7;border-radius:12px">';
+    [[95, '#2E6B4A'], [90, '#B3261E']].forEach(a => { if(a[0] >= lo) svg += '<line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + Y(a[0]) + '" y2="' + Y(a[0]) + '" stroke="' + a[1] + '" stroke-dasharray="4 3" stroke-width="1"/><text x="2" y="' + (Y(a[0]) + 3) + '" font-size="9" fill="' + a[1] + '">' + a[0] + '</text>'; });
+    svg += '<line x1="' + pl + '" x2="' + pl + '" y1="' + pt + '" y2="' + (H - pb) + '" stroke="#9aa3ad"/><line x1="' + pl + '" x2="' + (W - pr) + '" y1="' + (H - pb) + '" y2="' + (H - pb) + '" stroke="#9aa3ad"/>';
+    svg += '<polyline fill="none" stroke="#0F2440" stroke-width="2.2" points="' + rows.map((r, i) => X(i) + ',' + Y(pctOf(r))).join(' ') + '"/>';
+    rows.forEach((r, i) => { const p = pctOf(r); svg += '<circle cx="' + X(i) + '" cy="' + Y(p) + '" r="4.5" fill="' + (p >= 95 ? '#2E6B4A' : (p >= 90 ? '#C7963E' : '#B3261E')) + '"/><text x="' + X(i) + '" y="' + (Y(p) - 8) + '" font-size="9" text-anchor="middle" fill="#333">' + Math.round(p) + '</text>'; });
+    const step = Math.max(1, Math.ceil(rows.length / 6));
+    rows.forEach((r, i) => { if(i % step === 0 || i === rows.length - 1) svg += '<text x="' + X(i) + '" y="' + (H - 12) + '" font-size="9" text-anchor="middle" fill="#555">' + dOf(r).slice(8) + '/' + dOf(r).slice(5, 7) + '</text>'; });
+    svg += '</svg>';
+    const first = ps[0], last = ps[ps.length - 1], best = Math.max.apply(null, ps), av = ps.reduce((x, y) => x + y, 0) / ps.length, half = Math.floor(ps.length / 2);
+    let trend = '';
+    if(ps.length >= 4){ const m = a => a.reduce((x, y) => x + y, 0) / a.length, d = m(ps.slice(ps.length - half)) - m(ps.slice(0, half)); trend = d > 2 ? '📈 المستوى في تحسّن عن الاختبارات الأولى' : (d < -2 ? '📉 المستوى نازل عن الاختبارات الأولى ويحتاج متابعة' : '➖ المستوى ثابت تقريبًا'); }
+    h += svg + kp([[ad(Math.round(first)), 'أول درجة'], [ad(Math.round(last)), 'آخر درجة'], [ad(Math.round(best)), 'أعلى درجة'], [ad(r1(av)), 'المتوسط']]) + (trend ? '<div class="tr-sm" style="text-align:center;font-weight:800">' + trend + '</div>' : '') + '<h3>الاختبارات</h3>' +
+      rows.map(r => { const p = pctOf(r), w = subject(r); return '<div class="tr-row"><span>' + dLbl(dOf(r)) + (w ? ' — ' + esc(w) : '') + '</span><span><b>' + ad(Math.round(p)) + '٪</b> <span class="bg ' + (passOf(r) ? 'ok' : 'bad') + '">' + (passOf(r) ? 'ناجح' : 'راسب') + '</span></span></div>'; }).join('');
+    t.push('أول درجة: ' + ad(Math.round(first)) + '٪ — آخر درجة: ' + ad(Math.round(last)) + '٪ — أعلى: ' + ad(Math.round(best)) + '٪ — المتوسط: ' + ad(r1(av)) + '٪'); if(trend) t.push(trend); t.push('');
+    rows.forEach(r => t.push(dLbl(dOf(r)) + ' — ' + (subject(r) || '') + ' — ' + ad(Math.round(pctOf(r))) + '٪ ' + (passOf(r) ? '✅' : '❌')));
+    return {h: h, t: t.join('\n')};
+  }
+
+  function openReports(){
+    const old = document.getElementById('trOv'); if(old) old.remove();
+    if(!TR.from){ const n = new Date(), b = new Date(); b.setDate(b.getDate() - 6); TR.to = isoD(n); TR.from = isoD(b); }
+    const ov = document.createElement('div'); ov.id = 'trOv';
+    ov.innerHTML = '<div class="tr-box"><div class="tr-tabs tr-noprint"></div><div class="tr-ctl tr-noprint"></div><div class="tr-body"></div><div class="tr-act tr-noprint"><button type="button" class="tr-b p" id="trPrint">🖨️ طباعة / حفظ PDF</button><button type="button" class="tr-b" id="trWa">💬 واتساب نص</button><button type="button" class="tr-b" id="trX">إغلاق</button></div></div>';
+    document.body.appendChild(ov);
+    const q = s => ov.querySelector(s);
+    const TABS_ = [['wsum', '🧾 ملخص الأسبوع'], ['week', '📅 التقرير الأسبوعي'], ['mon', '🗓️ تقرير شهري'], ['stu', '📈 تطور الطالب']];
+    const sel = (id, list, val, first) => '<select id="' + id + '">' + (first != null ? '<option value="">' + first + '</option>' : '') + list.map(o => { const v = Array.isArray(o) ? o[0] : o, l = Array.isArray(o) ? o[1] : o; return '<option value="' + esc(v) + '"' + (v === val ? ' selected' : '') + '>' + esc(l) + '</option>'; }).join('') + '</select>';
+    function draw(){
+      q('.tr-tabs').innerHTML = TABS_.map(x => '<button type="button" data-t="' + x[0] + '" class="' + (x[0] === TR.tab ? 'on' : '') + '">' + x[1] + '</button>').join('');
+      const brs = [...new Set(results.filter(valid).map(brOf).filter(Boolean))].sort(AR_);
+      if(TR.br && brs.indexOf(TR.br) < 0) TR.br = '';
+      const brSel = brs.length ? '<label>الفرع' + sel('trBr', brs, TR.br, 'كل الفروع') + '</label>' : '';
+      let ctl = '', out;
+      if(TR.tab === 'wsum' || TR.tab === 'week'){
+        ctl = '<label>من<input type="date" id="trF" value="' + TR.from + '"></label><label>إلى<input type="date" id="trT" value="' + TR.to + '"></label><button type="button" class="tr-b" data-q="6">آخر ٧ أيام</button><button type="button" class="tr-b" data-q="13">آخر ١٤ يوم</button><button type="button" class="tr-b" data-q="m">الشهر ده</button>' + brSel;
+        out = TR.tab === 'wsum' ? trWsum() : trWeek();
+      }else if(TR.tab === 'mon'){
+        out = trMon();
+        ctl = '<label>الشهر' + sel('trM', trMonths().map(m => [m, mLbl(m)]), TR.mon, null) + '</label>' + brSel;
+      }else{
+        out = trStu(); const L = trStuLists();
+        ctl = brSel + '<label>الفصل' + sel('trC', L.cls, TR.cls, 'كل الفصول') + '</label><label>الطالب' + sel('trS', L.names, TR.stu, null) + '</label>';
+      }
+      q('.tr-ctl').innerHTML = ctl; q('.tr-body').innerHTML = out.h; TR.text = out.t;
+      q('.tr-tabs').querySelectorAll('button').forEach(b => { b.onclick = () => { TR.tab = b.dataset.t; draw(); }; });
+      const on = (id, fn) => { const e = q('#' + id); if(e) e.onchange = fn; };
+      on('trBr', e => { TR.br = e.target.value; TR.cls = ''; TR.stu = ''; draw(); });
+      on('trF', e => { TR.from = e.target.value; if(!TR.to || TR.to < TR.from) TR.to = TR.from; draw(); });
+      on('trT', e => { TR.to = e.target.value; if(TR.from > TR.to) TR.from = TR.to; draw(); });
+      on('trM', e => { TR.mon = e.target.value; draw(); });
+      on('trC', e => { TR.cls = e.target.value; TR.stu = ''; draw(); });
+      on('trS', e => { TR.stu = e.target.value; draw(); });
+      q('.tr-ctl').querySelectorAll('button[data-q]').forEach(b => { b.onclick = () => {
+        const n = new Date(), v = b.dataset.q; TR.to = isoD(n);
+        if(v === 'm'){ TR.from = isoD(new Date(n.getFullYear(), n.getMonth(), 1)); } else { const d = new Date(); d.setDate(d.getDate() - Number(v)); TR.from = isoD(d); }
+        draw();
+      }; });
+    }
+    q('#trX').onclick = () => { ov.remove(); window.__trRefresh = null; document.documentElement.classList.remove('tr-open'); };
+    q('#trPrint').onclick = () => { document.documentElement.classList.add('tr-open'); window.print(); setTimeout(() => document.documentElement.classList.remove('tr-open'), 800); };
+    q('#trWa').onclick = () => {
+      const t = TR.text || ''; if(!t){ alert('مفيش بيانات تتبعت في التقرير ده'); return; }
+      const w = window.open('https://wa.me/?text=' + encodeURIComponent(t), '_blank');
+      if(!w){ try{ navigator.clipboard.writeText(t); alert('اتنسخ النص، الصقيه في واتساب ✓'); }catch(_){ prompt('انسخي النص:', t); } }
+    };
+    window.__trRefresh = () => { if(document.getElementById('trOv')) draw(); };
+    draw();
+  }
+  $('trBtn').addEventListener('click', openReports);
+  window.openClassReport = openReport;
+  $('crBtn').addEventListener('click', openReport);
+})();
+</script>
+</body>
+</html>
